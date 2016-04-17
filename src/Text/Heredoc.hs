@@ -34,7 +34,10 @@ data Line = CtrlForall String [Expr]
 data Expr = S String
           | I Integer
           | V String
+          | V' String
+          | C String
           | O String
+          | O' String
           | E [Expr]
             deriving Show
 
@@ -114,11 +117,13 @@ expr :: Parser [Expr]
 expr = spaceTabs *> many1 term
     where
       term :: Parser Expr
-      term = (S <$> str <|>
-              E <$> subexp <|>
-              O <$> op <|>
-              I <$> integer <|>
-              V <$> var) <* spaceTabs
+      term = (S  <$> str <|>
+              O  <$> op <|>
+              (try (O' <$> op') <|> try (E  <$> subexp)) <|>
+              C  <$> con <|>
+              I  <$> integer <|>
+              V' <$> var' <|>
+              V  <$> var) <* spaceTabs
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -127,7 +132,7 @@ str :: Parser String
 str = char '"' *> many quotedChar <* char '"'
     where
       quotedChar :: Parser Char
-      quotedChar = noneOf "\\\"" <|> try (string "\\\"" >> return '"')
+      quotedChar = noneOf "\\\"" <|> try (string "\\\"" >> pure '"')
 
 subexp :: Parser [Expr]
 subexp = char '(' *> expr <* char ')'
@@ -135,8 +140,17 @@ subexp = char '(' *> expr <* char ')'
 var :: Parser String
 var = many1 (letter <|> digit <|> char '_' <|> char '\'')
 
+var' :: Parser String
+var' = char '`' *> var <* char '`'
+
+con :: Parser String
+con = (:) <$> upper <*> many (letter <|> digit <|> char '_' <|> char '\'')
+
 op :: Parser String
 op = many1 (oneOf ":!#$%&*+./<=>?@\\^|-~")
+
+op' :: Parser String
+op' = char '(' *> op <* char ')'
 
 normal :: Parser Line
 normal = Normal <$> many1 (try quoted <|> try raw' <|> try raw)
@@ -161,8 +175,14 @@ instance ToQ Expr where
     toQ (S s) = litE (stringL s)
     toQ (I i) = litE (integerL i)
     toQ (V v) = varE (mkName v)
+    toQ (O o) = (varE (mkName o))
+    toQ (E e) = concatToQ e
 
-    concatToQ (x:xs) = undefined
+    concatToQ [x] = toQ x
+    concatToQ (l:(O o):r:xs) = infixE (Just (toQ l))
+                                      (varE (mkName o))
+                                      (Just (concatToQ (r:xs)))
+    concatToQ ((V v):xs) = appE (varE (mkName v)) (concatToQ xs)
 
 instance ToQ InLine where
     toQ (Raw s) = litE (stringL s)
