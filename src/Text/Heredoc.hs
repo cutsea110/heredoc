@@ -34,6 +34,8 @@ data Line = CtrlForall String [Expr]
 data Expr = S String
           | I Integer
           | V String
+          | O String
+          | E [Expr]
             deriving Show
 
 eol :: Parser String
@@ -112,7 +114,11 @@ expr :: Parser [Expr]
 expr = spaceTabs *> many1 term
     where
       term :: Parser Expr
-      term = (S <$> str <|> I <$> integer <|> V <$> var) <* spaceTabs
+      term = (S <$> str <|>
+              E <$> subexp <|>
+              O <$> op <|>
+              I <$> integer <|>
+              V <$> var) <* spaceTabs
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -123,8 +129,14 @@ str = char '"' *> many quotedChar <* char '"'
       quotedChar :: Parser Char
       quotedChar = noneOf "\\\"" <|> try (string "\\\"" >> return '"')
 
+subexp :: Parser [Expr]
+subexp = char '(' *> expr <* char ')'
+
 var :: Parser String
-var = many1 (noneOf " \t\n\r{}\'\"$")
+var = many1 (letter <|> digit <|> char '_' <|> char '\'')
+
+op :: Parser String
+op = many1 (oneOf ":!#$%&*+./<=>?@\\^|-~")
 
 normal :: Parser Line
 normal = Normal <$> many1 (try quoted <|> try raw' <|> try raw)
@@ -138,3 +150,35 @@ raw' = Raw <$> ((:) <$> (char '$')
 
 raw :: Parser InLine
 raw = Raw <$> many1 (noneOf "$\n\r")
+
+----
+
+class ToQ a where
+    toQ :: a -> Q Exp
+    concatToQ :: [a] -> Q Exp
+
+instance ToQ Expr where
+    toQ (S s) = litE (stringL s)
+    toQ (I i) = litE (integerL i)
+    toQ (V v) = varE (mkName v)
+
+    concatToQ (x:xs) = undefined
+
+instance ToQ InLine where
+    toQ (Raw s) = litE (stringL s)
+    toQ (Quoted expr) = undefined
+
+    concatToQ (x:xs) = undefined
+
+instance ToQ Line where
+    toQ (CtrlForall b e) = undefined
+    toQ (CtrlMaybe b e) = undefined
+    toQ CtrlNothing = undefined
+    toQ (CtrlIf e) = undefined
+    toQ CtrlElse = undefined
+    toQ (CtrlCase e) = undefined
+    toQ (CtrlOf e) = undefined
+    toQ (CtrlLet b e) = undefined
+    toQ (Normal xs) = undefined
+
+    concatToQ (x:xs) = undefined
