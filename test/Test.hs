@@ -135,6 +135,15 @@ Question
       ${y}(${show $ x+3}).
 |]
 
+test4' :: String
+test4' = [heredoc|
+Question
+  $let x = 42
+    ${show x}
+$let y = "cutsea"
+  ${y}
+|]
+
 test5 :: String
 test5 = let mu = Just "katsutoshi"
         in [heredoc|
@@ -144,11 +153,18 @@ $nothing
   Bye
 |]
 
-test5' :: String
-test5' = let mu = Nothing
+{--
+test6 :: String
+test6 = let mu = Just "Katsutoshi"
+            ma = Nothing
         in [heredoc|
 $maybe u <- mu
   Hello ${u} san
+  $maybe a <- ma
+    Hohoho!
+  $nothing
+    Hehehe!
 $nothing
   Bye
 |]
+--}
