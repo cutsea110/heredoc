@@ -163,7 +163,7 @@ op' :: Parser String
 op' = char '(' *> op <* char ')'
 
 normal :: Parser Line
-normal = Normal <$> many1 (try quoted <|> try raw' <|> try raw)
+normal = Normal <$> many (try quoted <|> try raw' <|> try raw)
 
 quoted :: Parser InLine
 quoted = Quoted <$> (string "${" *> expr <* string "}")
@@ -178,6 +178,7 @@ raw = Raw <$> many1 (noneOf "$\n\r")
 ----
 
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
+arrange [] = []
 arrange [x] = [x]
 arrange ((i, CtrlForall b e body):(j, next):xs)
     | i < j = arrange ((i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs)
@@ -236,7 +237,7 @@ instance ToQ InLine where
     toQ (Raw s) = litE (stringL s)
     toQ (Quoted expr) = concatToQ expr
 
-    concatToQ (x:[]) = toQ x
+    concatToQ [] = litE (stringL "")
     concatToQ (x:xs) = infixE (Just (toQ x))
                               (varE '(++))
                               (Just (concatToQ xs))
@@ -265,7 +266,7 @@ instance ToQ Line' where
                                    (Just (toQ x))
     toQ (n, x) =  toQ x -- Ctrl*
 
-    concatToQ (x:[]) = toQ x
+    concatToQ [] = litE (stringL "")
     concatToQ (x:xs) = infixE (Just (infixE (Just (toQ x))
                                             (varE '(++))
                                             (Just (litE (stringL "\n")))))

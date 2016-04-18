@@ -6,9 +6,9 @@ module Main where
 import Language.Haskell.TH
 
 import Text.Heredoc
-
+{--
 servantClientCode :: String
-servantClientCode = [csharp|
+servantClientCode = [heredoc|
 using Newtonsoft.Json;
 using System.Collection.Generic;
 using System.Diagnostics;
@@ -101,3 +101,28 @@ main = do
               , ("Emailaddress", "System.String")
               ]
   putStr servantClientCode
+
+--}
+
+test0 :: String
+test0 = [heredoc|hello,world|]
+
+test1 :: String
+test1 = [heredoc|
+Hello, World!
+|]
+
+test2 :: String
+test2 = let x = 42
+        in [heredoc|
+The number is ${show x}.
+|]
+
+test3 :: String
+test3 = [heredoc|
+Question
+  $let x = 42
+    ${show x} + 2 = ${show $ x + 2}.
+    ${show x} * 2 = ${show $ x * 2}.
+    ${show x} ^ 2 = ${show $ x ^ 2}.
+|]
