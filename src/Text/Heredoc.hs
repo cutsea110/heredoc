@@ -267,8 +267,11 @@ instance ToQ Line' where
     toQ (n, x) =  toQ x -- Ctrl*
 
     concatToQ [] = litE (stringL "")
-    concatToQ (x:xs) = infixE (Just (infixE (Just (toQ x))
+    concatToQ (x@(_, Normal _):xs) = infixE (Just (infixE (Just (toQ x))
                                             (varE '(++))
                                             (Just (litE (stringL "\n")))))
+                              (varE '(++))
+                              (Just (concatToQ xs))
+    concatToQ (x:xs) = infixE (Just (toQ x))
                               (varE '(++))
                               (Just (concatToQ xs))

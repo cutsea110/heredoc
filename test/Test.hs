@@ -126,3 +126,11 @@ Question
     ${show x} * 2 = ${show $ x * 2}.
     ${show x} ^ 2 = ${show $ x ^ 2}.
 |]
+
+test4 :: String
+test4 = [heredoc|
+Question
+  $let x = 42
+    $let y = "Katsutoshi"
+      ${y}(${show $ x+3}).
+|]
