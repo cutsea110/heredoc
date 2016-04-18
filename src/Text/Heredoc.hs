@@ -256,10 +256,12 @@ instance ToQ InLine where
 
 instance ToQ Line where
     toQ (CtrlForall b e body) = undefined
-    toQ (CtrlMaybe flg b e body alt) = undefined
-    toQ CtrlNothing = undefined
+    toQ (CtrlMaybe flg b e body alt)
+        = appE (appE (appE (varE 'maybe)
+                           (concatToQ alt))
+                     (lamE [varP (mkName b)] (concatToQ body)))
+               (concatToQ e)
     toQ (CtrlIf flg e body alt) = undefined
-    toQ CtrlElse = undefined
     toQ (CtrlCase e body) = undefined
     toQ (CtrlOf e body) = undefined
     toQ (CtrlLet b e body)

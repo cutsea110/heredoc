@@ -134,3 +134,21 @@ Question
     $let y = "Katsutoshi"
       ${y}(${show $ x+3}).
 |]
+
+test5 :: String
+test5 = let mu = Just "katsutoshi"
+        in [heredoc|
+$maybe u <- mu
+  Hello ${u} san
+$nothing
+  Bye
+|]
+
+test5' :: String
+test5' = let mu = Nothing
+        in [heredoc|
+$maybe u <- mu
+  Hello ${u} san
+$nothing
+  Bye
+|]
