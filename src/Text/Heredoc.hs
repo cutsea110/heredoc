@@ -25,16 +25,17 @@ heredocFromString
 type Indent = Int
 type Line' = (Indent, Line)
 type ChildBlock = [Line']
+type AltFlag = Bool
 
 data InLine = Raw String
          | Quoted [Expr]
            deriving Show
 
 data Line = CtrlForall String [Expr] ChildBlock
-             | CtrlMaybe String [Expr] ChildBlock
-             | CtrlNothing ChildBlock
-             | CtrlIf [Expr] ChildBlock
-             | CtrlElse ChildBlock
+             | CtrlMaybe AltFlag String [Expr] ChildBlock ChildBlock
+             | CtrlNothing
+             | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
+             | CtrlElse
              | CtrlCase [Expr] ChildBlock
              | CtrlOf [Expr] ChildBlock
              | CtrlLet String [Expr] ChildBlock
@@ -91,20 +92,20 @@ ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe <$> bindVal<*> expr <*> pure []
+ctrlMaybe = CtrlMaybe <$> pure False <*> bindVal<*> expr <*> pure [] <*> pure []
     where
       bindVal = string "$maybe" *> spaceTabs *>
                 binding
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlNothing :: Parser Line
-ctrlNothing = string "$nothing" *> spaceTabs >> CtrlNothing <$> pure []
+ctrlNothing = string "$nothing" *> spaceTabs >> pure CtrlNothing
 
 ctrlIf :: Parser Line
-ctrlIf = CtrlIf <$> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure []
+ctrlIf = CtrlIf <$> pure False <*> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
 
 ctrlElse :: Parser Line
-ctrlElse = string "$else" *> spaceTabs >> CtrlElse <$> pure []
+ctrlElse = string "$else" *> spaceTabs >> pure CtrlElse
 
 ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
@@ -181,29 +182,40 @@ arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange [] = []
 arrange [x] = [x]
 arrange ((i, CtrlForall b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs)
+    | i < j = arrange $ (i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs
     | otherwise = (i, CtrlForall b e body):arrange ((j, next):xs)
-arrange ((i, CtrlMaybe b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlMaybe b e (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlMaybe b e body):arrange ((j, next):xs)
-arrange ((i, CtrlNothing body):(j, next):xs)
-    | i < j = arrange ((i, CtrlNothing (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlNothing body):arrange ((j, next):xs)
-arrange ((i, CtrlIf e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlIf e (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlIf e body):arrange ((j, next):xs)
-arrange ((i, CtrlElse body):(j, next):xs)
-    | i < j = arrange ((i, CtrlElse (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlElse body):arrange ((j, next):xs)
+
+arrange ((i, CtrlMaybe False b e body alt):(j, CtrlNothing):xs)
+    | i == j = arrange $ (i, CtrlMaybe True b e (arrange body) alt):xs
+    | otherwise = error "Couldn't found $maybe statement"
+arrange ((i, CtrlMaybe False b e body alt):(j, next):xs)
+    | i < j = arrange $ (i, CtrlMaybe False b e (arrange $ body ++ [(j-1, next)]) alt):xs
+    | otherwise = (i, CtrlMaybe False b e body alt):arrange ((j, next):xs)
+arrange ((i, CtrlMaybe True b e body alt):(j, next):xs)
+    | i < j = arrange $ (i, CtrlMaybe True b e body (arrange $ alt ++ [(j-i, next)])):xs
+    | otherwise = (i, CtrlMaybe True b e body alt):arrange ((j, next):xs)
+
+arrange ((i, CtrlIf False e body alt):(j, CtrlElse):xs)
+    | i == j = arrange $ (i, CtrlIf True e (arrange body) alt):xs
+    | otherwise = error "Couldn't found $if statement"
+arrange ((i, CtrlIf False e body alt):(j, next):xs)
+    | i < j = arrange $ (i, CtrlIf False e (arrange $ body ++ [(j-i, next)]) alt):xs
+    | otherwise = (i, CtrlIf False e body alt):arrange ((j, next):xs)
+arrange ((i, CtrlIf True e body alt):(j, next):xs)
+    | i < j = arrange $ (i, CtrlIf True e body (arrange $ alt ++ [(j-i, next)])):xs
+    | otherwise = (i, CtrlIf True e body alt):arrange ((j, next):xs)
+
 arrange ((i, CtrlCase e body):(j, next):xs)
     | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlCase e body):arrange ((j, next):xs)
 arrange ((i, CtrlOf e body):(j, next):xs)
     | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlOf e body):arrange ((j, next):xs)
+
 arrange ((i, CtrlLet b e body):(j, next):xs)
     | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
+
 arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
 
 class ToQ a where
@@ -244,10 +256,10 @@ instance ToQ InLine where
 
 instance ToQ Line where
     toQ (CtrlForall b e body) = undefined
-    toQ (CtrlMaybe b e body) = undefined
-    toQ (CtrlNothing body) = undefined
-    toQ (CtrlIf e body) = undefined
-    toQ (CtrlElse body) = undefined
+    toQ (CtrlMaybe flg b e body alt) = undefined
+    toQ CtrlNothing = undefined
+    toQ (CtrlIf flg e body alt) = undefined
+    toQ CtrlElse = undefined
     toQ (CtrlCase e body) = undefined
     toQ (CtrlOf e body) = undefined
     toQ (CtrlLet b e body)
