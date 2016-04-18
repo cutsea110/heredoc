@@ -180,28 +180,28 @@ raw = Raw <$> many1 (noneOf "$\n\r")
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange [x] = [x]
 arrange ((i, CtrlForall b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlForall b e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlForall b e body):arrange ((j, next):xs)
 arrange ((i, CtrlMaybe b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlMaybe b e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlMaybe b e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlMaybe b e body):arrange ((j, next):xs)
 arrange ((i, CtrlNothing body):(j, next):xs)
-    | i < j = arrange ((i, CtrlNothing (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlNothing (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlNothing body):arrange ((j, next):xs)
 arrange ((i, CtrlIf e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlIf e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlIf e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlIf e body):arrange ((j, next):xs)
 arrange ((i, CtrlElse body):(j, next):xs)
-    | i < j = arrange ((i, CtrlElse (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlElse (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlElse body):arrange ((j, next):xs)
 arrange ((i, CtrlCase e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlCase e body):arrange ((j, next):xs)
 arrange ((i, CtrlOf e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlOf e body):arrange ((j, next):xs)
 arrange ((i, CtrlLet b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j, next)])):xs)
+    | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
 arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
 
@@ -249,7 +249,9 @@ instance ToQ Line where
     toQ (CtrlElse body) = undefined
     toQ (CtrlCase e body) = undefined
     toQ (CtrlOf e body) = undefined
-    toQ (CtrlLet b e body) = undefined
+    toQ (CtrlLet b e body)
+        = letE [valD (varP (mkName b)) (normalB $ concatToQ e) []]
+               (concatToQ body)
     toQ (Normal xs) = concatToQ xs
 
     concatToQ (x:[]) = toQ x
@@ -257,12 +259,15 @@ instance ToQ Line where
                               (varE '(++))
                               (Just (concatToQ xs))
 
-instance ToQ a => ToQ (Indent, a) where
-    toQ (n, x) = infixE (Just (litE (stringL (replicate n ' '))))
-                        (varE '(++))
-                        (Just (toQ x))
+instance ToQ Line' where
+    toQ (n, x@(Normal _)) = infixE (Just (litE (stringL (replicate n ' '))))
+                                   (varE '(++))
+                                   (Just (toQ x))
+    toQ (n, x) =  toQ x -- Ctrl*
 
     concatToQ (x:[]) = toQ x
-    concatToQ (x:xs) = infixE (Just (toQ x))
+    concatToQ (x:xs) = infixE (Just (infixE (Just (toQ x))
+                                            (varE '(++))
+                                            (Just (litE (stringL "\n")))))
                               (varE '(++))
                               (Just (concatToQ xs))
