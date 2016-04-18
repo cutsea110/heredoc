@@ -185,15 +185,21 @@ instance ToQ Expr where
     toQ (O o) = (varE (mkName o))
     toQ (E e) = concatToQ e
 
-    concatToQ [x] = toQ x
-    concatToQ (l:(O o):r:xs) = infixE (Just (toQ l))
-                                      (varE (mkName o))
-                                      (Just (concatToQ (r:xs)))
-    concatToQ (l:(V' v'):r:xs) = infixE (Just (toQ l))
-                                        (varE (mkName v'))
-                                        (Just (concatToQ (r:xs)))
-    concatToQ ((V v):xs) = appE (varE (mkName v)) (concatToQ xs)
-    concatToQ ((O' o'):xs) = appE (varE (mkName o')) (concatToQ xs)
+    concatToQ xs = concatToQ' Nothing xs
+        where
+          concatToQ' (Just acc) [] = acc
+          concatToQ' Nothing  [x] = toQ x
+          concatToQ' Nothing (x:xs) = concatToQ' (Just (toQ x)) xs
+          concatToQ' (Just acc) ((O o):xs)
+              = infixE (Just acc)
+                       (varE (mkName o))
+                       (Just (concatToQ xs))
+          concatToQ' (Just acc) ((V' v'):xs)
+              = infixE (Just acc)
+                       (varE (mkName v'))
+                       (Just (concatToQ xs))
+          concatToQ' (Just acc) (x:xs)
+              = concatToQ' (Just (appE acc (toQ x))) xs
 
 instance ToQ InLine where
     toQ (Raw s) = litE (stringL s)
