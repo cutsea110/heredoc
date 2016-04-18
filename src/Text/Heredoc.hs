@@ -58,10 +58,10 @@ eol =     try (string "\n\r")
 spaceTabs :: Parser String
 spaceTabs = many (oneOf " \t")
 
-doc :: Parser [(Indent, [Line])]
+doc :: Parser [(Indent, Line)]
 doc = line `endBy` eol
 
-line :: Parser (Indent, [Line])
+line :: Parser (Indent, Line)
 line = (,) <$> indent <*> contents
 
 indent :: Parser Indent
@@ -69,16 +69,16 @@ indent = fmap sum $
          many ((char ' ' >> pure 1) <|>
                (char '\t' >> fail "Tabs are not allowed in indentation"))
 
-contents :: Parser [Line]
-contents = many (try ctrlForall <|>
-                 try ctrlMaybe <|>
-                 try ctrlNothing <|>
-                 try ctrlIf <|>
-                 try ctrlElse <|>
-                 try ctrlCase <|>
-                 try ctrlOf <|>
-                 try ctrlLet <|>
-                 normal)
+contents :: Parser Line
+contents = try ctrlForall <|>
+           try ctrlMaybe <|>
+           try ctrlNothing <|>
+           try ctrlIf <|>
+           try ctrlElse <|>
+           try ctrlCase <|>
+           try ctrlOf <|>
+           try ctrlLet <|>
+           normal
 
 ctrlForall :: Parser Line
 ctrlForall = CtrlForall <$> bindVal <*> expr
@@ -226,10 +226,10 @@ instance ToQ Line where
                               (varE '(++))
                               (Just (concatToQ xs))
 
-instance ToQ a => ToQ (Indent, [a]) where
-    toQ (n, xs) = infixE (Just (litE (stringL (replicate n ' '))))
-                         (varE '(++))
-                         (Just (concatToQ xs))
+instance ToQ a => ToQ (Indent, a) where
+    toQ (n, x) = infixE (Just (litE (stringL (replicate n ' '))))
+                        (varE '(++))
+                        (Just (toQ x))
 
     concatToQ (x:[]) = toQ x
     concatToQ (x:xs) = infixE (Just (toQ x))
