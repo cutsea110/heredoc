@@ -15,26 +15,29 @@ heredoc = QuasiQuoter { quoteExp = heredocFromString }
 
 -- | C# code gen
 heredocFromString :: String -> Q Exp
-heredocFromString = either err concatToQ . parse doc "heredoc" . (<>"\n")
+heredocFromString
+    = either err (concatToQ . arrange) . parse doc "heredoc" . (<>"\n")
     where
       err = infixE <$> Just . pos <*> pure (varE '(++)) <*> Just . msg
       pos = litE <$> (stringL <$> show . errorPos)
       msg = litE <$> (stringL <$> concatMap messageString . errorMessages)
 
 type Indent = Int
+type Line' = (Indent, Line)
+type ChildBlock = [Line']
 
 data InLine = Raw String
          | Quoted [Expr]
            deriving Show
 
-data Line = CtrlForall String [Expr]
-             | CtrlMaybe String [Expr]
-             | CtrlNothing
-             | CtrlIf [Expr]
-             | CtrlElse
-             | CtrlCase [Expr]
-             | CtrlOf [Expr]
-             | CtrlLet String [Expr]
+data Line = CtrlForall String [Expr] ChildBlock
+             | CtrlMaybe String [Expr] ChildBlock
+             | CtrlNothing ChildBlock
+             | CtrlIf [Expr] ChildBlock
+             | CtrlElse ChildBlock
+             | CtrlCase [Expr] ChildBlock
+             | CtrlOf [Expr] ChildBlock
+             | CtrlLet String [Expr] ChildBlock
              | Normal [InLine]
                deriving Show
 
@@ -81,36 +84,36 @@ contents = try ctrlForall <|>
            normal
 
 ctrlForall :: Parser Line
-ctrlForall = CtrlForall <$> bindVal <*> expr
+ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
     where
       bindVal = string "$forall" *> spaceTabs *>
                 binding
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe <$> bindVal<*> expr
+ctrlMaybe = CtrlMaybe <$> bindVal<*> expr <*> pure []
     where
       bindVal = string "$maybe" *> spaceTabs *>
                 binding
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlNothing :: Parser Line
-ctrlNothing = string "$nothing" *> spaceTabs >> pure CtrlNothing
+ctrlNothing = string "$nothing" *> spaceTabs >> CtrlNothing <$> pure []
 
 ctrlIf :: Parser Line
-ctrlIf = CtrlIf <$> (string "$if" *> spaceTabs *> expr <* spaceTabs)
+ctrlIf = CtrlIf <$> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlElse :: Parser Line
-ctrlElse = string "$else" *> spaceTabs >> pure CtrlElse
+ctrlElse = string "$else" *> spaceTabs >> CtrlElse <$> pure []
 
 ctrlCase :: Parser Line
-ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs)
+ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlOf :: Parser Line
-ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> expr <* spaceTabs)
+ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlLet :: Parser Line
-ctrlLet = CtrlLet <$> bindVal <*> expr
+ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
     where
       bindVal = string "$let" *> spaceTabs *>
                 binding
@@ -174,6 +177,34 @@ raw = Raw <$> many1 (noneOf "$\n\r")
 
 ----
 
+arrange :: [(Indent, Line)] -> [(Indent, Line)]
+arrange [x] = [x]
+arrange ((i, CtrlForall b e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlForall b e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlForall b e body):arrange ((j, next):xs)
+arrange ((i, CtrlMaybe b e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlMaybe b e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlMaybe b e body):arrange ((j, next):xs)
+arrange ((i, CtrlNothing body):(j, next):xs)
+    | i < j = arrange ((i, CtrlNothing (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlNothing body):arrange ((j, next):xs)
+arrange ((i, CtrlIf e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlIf e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlIf e body):arrange ((j, next):xs)
+arrange ((i, CtrlElse body):(j, next):xs)
+    | i < j = arrange ((i, CtrlElse (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlElse body):arrange ((j, next):xs)
+arrange ((i, CtrlCase e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlCase e body):arrange ((j, next):xs)
+arrange ((i, CtrlOf e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlOf e body):arrange ((j, next):xs)
+arrange ((i, CtrlLet b e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j, next)])):xs)
+    | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
+arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
+
 class ToQ a where
     toQ :: a -> Q Exp
     concatToQ :: [a] -> Q Exp
@@ -211,14 +242,14 @@ instance ToQ InLine where
                               (Just (concatToQ xs))
 
 instance ToQ Line where
-    toQ (CtrlForall b e) = undefined
-    toQ (CtrlMaybe b e) = undefined
-    toQ CtrlNothing = undefined
-    toQ (CtrlIf e) = undefined
-    toQ CtrlElse = undefined
-    toQ (CtrlCase e) = undefined
-    toQ (CtrlOf e) = undefined
-    toQ (CtrlLet b e) = undefined
+    toQ (CtrlForall b e body) = undefined
+    toQ (CtrlMaybe b e body) = undefined
+    toQ (CtrlNothing body) = undefined
+    toQ (CtrlIf e body) = undefined
+    toQ (CtrlElse body) = undefined
+    toQ (CtrlCase e body) = undefined
+    toQ (CtrlOf e body) = undefined
+    toQ (CtrlLet b e body) = undefined
     toQ (Normal xs) = concatToQ xs
 
     concatToQ (x:[]) = toQ x
