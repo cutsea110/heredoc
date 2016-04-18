@@ -32,10 +32,10 @@ data InLine = Raw String
            deriving Show
 
 data Line = CtrlForall String [Expr] ChildBlock
-             | CtrlMaybe String [Expr] ChildBlock ChildBlock
-             | CtrlNothing ChildBlock
-             | CtrlIf [Expr] ChildBlock ChildBlock
-             | CtrlElse ChildBlock
+             | CtrlMaybe AltFlag String [Expr] ChildBlock ChildBlock
+             | CtrlNothing
+             | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
+             | CtrlElse
              | CtrlCase [Expr] ChildBlock
              | CtrlOf [Expr] ChildBlock
              | CtrlLet String [Expr] ChildBlock
@@ -92,20 +92,20 @@ ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe <$> bindVal <*> expr <*> pure [] <*> pure []
+ctrlMaybe = CtrlMaybe <$> pure False <*> bindVal<*> expr <*> pure [] <*> pure []
     where
       bindVal = string "$maybe" *> spaceTabs *>
                 binding
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlNothing :: Parser Line
-ctrlNothing = string "$nothing" *> spaceTabs >> CtrlNothing <$> pure []
+ctrlNothing = string "$nothing" *> spaceTabs >> pure CtrlNothing
 
 ctrlIf :: Parser Line
-ctrlIf = CtrlIf <$> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
+ctrlIf = CtrlIf <$> pure False <*> (string "$if" *> spaceTabs *> expr <* spaceTabs) <*> pure [] <*> pure []
 
 ctrlElse :: Parser Line
-ctrlElse = string "$else" *> spaceTabs >> CtrlElse <$> pure []
+ctrlElse = string "$else" *> spaceTabs >> pure CtrlElse
 
 ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
@@ -177,59 +177,46 @@ raw :: Parser InLine
 raw = Raw <$> many1 (noneOf "$\n\r")
 
 ----
-arrange :: [(Indent, Line)] -> [(Indent, Line)]
-arrange = sub [] . reverse
-    where
-      sub ss [] = map normalize (reverse ss)
-      sub ss (x@(i, Normal _):xs) = sub (x:ss) xs
-      sub (s@(j, _):ss) (x@(i, CtrlLet b e body):xs)
-          | i < j = sub ss ((i, CtrlLet b e (body++[s])):xs)
-          | otherwise = sub (x:s:ss) xs
 
-      normalize = id -- TODO
-
-{--
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange [] = []
 arrange [x] = [x]
 arrange ((i, CtrlForall b e body):(j, next):xs)
-    | i < j = arrange $ (i, CtrlForall b e (arrange $ body ++ [(j, next)])):xs
+    | i < j = arrange $ (i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs
     | otherwise = (i, CtrlForall b e body):arrange ((j, next):xs)
 
 arrange ((i, CtrlMaybe False b e body alt):(j, CtrlNothing):xs)
     | i == j = arrange $ (i, CtrlMaybe True b e (arrange body) alt):xs
     | otherwise = error "Couldn't found $maybe statement"
 arrange ((i, CtrlMaybe False b e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlMaybe False b e (arrange $ body ++ [(j, next)]) alt):xs
+    | i < j = arrange $ (i, CtrlMaybe False b e (arrange $ body ++ [(j-1, next)]) alt):xs
     | otherwise = (i, CtrlMaybe False b e body alt):arrange ((j, next):xs)
 arrange ((i, CtrlMaybe True b e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlMaybe True b e body (arrange $ alt ++ [(j, next)])):xs
+    | i < j = arrange $ (i, CtrlMaybe True b e body (arrange $ alt ++ [(j-i, next)])):xs
     | otherwise = (i, CtrlMaybe True b e body alt):arrange ((j, next):xs)
 
 arrange ((i, CtrlIf False e body alt):(j, CtrlElse):xs)
     | i == j = arrange $ (i, CtrlIf True e (arrange body) alt):xs
     | otherwise = error "Couldn't found $if statement"
 arrange ((i, CtrlIf False e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlIf False e (arrange $ body ++ [(j, next)]) alt):xs
+    | i < j = arrange $ (i, CtrlIf False e (arrange $ body ++ [(j-i, next)]) alt):xs
     | otherwise = (i, CtrlIf False e body alt):arrange ((j, next):xs)
 arrange ((i, CtrlIf True e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlIf True e body (arrange $ alt ++ [(j, next)])):xs
+    | i < j = arrange $ (i, CtrlIf True e body (arrange $ alt ++ [(j-i, next)])):xs
     | otherwise = (i, CtrlIf True e body alt):arrange ((j, next):xs)
 
 arrange ((i, CtrlCase e body):(j, next):xs)
-    | i < j = arrange $ (i, CtrlCase e (arrange $ body ++ [(j, next)])):xs
+    | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlCase e body):arrange ((j, next):xs)
 arrange ((i, CtrlOf e body):(j, next):xs)
-    | i < j = arrange $ (i, CtrlOf e (arrange $ body ++ [(j, next)])):xs
+    | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlOf e body):arrange ((j, next):xs)
 
-arrange ((i, CtrlLet b e body):(j, next):xs)*
-    | i < j = arrange $ (i, CtrlLet b e (arrange $ body ++ [(j, next)])):xs[
+arrange ((i, CtrlLet b e body):(j, next):xs)
+    | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j-i, next)])):xs)
     | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
 
 arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
---}
-
 
 class ToQ a where
     toQ :: a -> Q Exp
@@ -269,12 +256,12 @@ instance ToQ InLine where
 
 instance ToQ Line where
     toQ (CtrlForall b e body) = undefined
-    toQ (CtrlMaybe b e body alt)
+    toQ (CtrlMaybe flg b e body alt)
         = appE (appE (appE (varE 'maybe)
                            (concatToQ alt))
                      (lamE [varP (mkName b)] (concatToQ body)))
                (concatToQ e)
-    toQ (CtrlIf e body alt) = undefined
+    toQ (CtrlIf flg e body alt) = undefined
     toQ (CtrlCase e body) = undefined
     toQ (CtrlOf e body) = undefined
     toQ (CtrlLet b e body)
