@@ -183,7 +183,9 @@ arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange = norm . rev . foldl (flip push) []
     where
       isCtrlNothing (_, CtrlNothing) = True
-      isCtrlNothing (_, _) = False
+      isCtrlNothing _ = False
+      isCtrlElse (_, CtrlElse) = True
+      isCtrlElse _ = False
 
       push x [] = x:[]
       push x ss'@((_, Normal _):_) = x:ss'
@@ -203,12 +205,25 @@ arrange = norm . rev . foldl (flip push) []
           | otherwise = x:ss'
       push x ((j, CtrlNothing):_) = error "orphan $nothing found"
 
+      push x@(i, _) ss'@((j, CtrlIf flg e body alt):ss)
+          | i > j = if flg
+                    then (j, CtrlIf flg e body (push x alt)):ss
+                    else (j, CtrlIf flg e (push x body) alt):ss
+          | i == j && isCtrlElse x
+              = if flg
+                then error "too many $else found"
+                else (j, CtrlIf True e body alt):ss
+          | otherwise = x:ss'
+      push x ((j, CtrlElse):_) = error "orphan $else found"
+
       rev = foldr (\x xs -> xs ++ [rev' x]) []
       rev' x@(_, Normal _) = x
       rev' (i, CtrlLet b e body)
           = (i, CtrlLet b e (rev body))
       rev' (i, CtrlMaybe flg b e body alt)
           = (i, CtrlMaybe flg b e (rev body) (rev alt))
+      rev' (i, CtrlIf flg e body alt)
+          = (i, CtrlIf flg e (rev body) (rev alt))
 
       norm = foldr (\x xs -> norm' x:xs) []
       norm' x@(_, Normal _) = x
@@ -223,6 +238,13 @@ arrange = norm . rev . foldl (flip push) []
                      (norm $ map (deIndent *** id) body)
                      (norm $ map (deIndent' *** id) alt))
       norm' (i, CtrlNothing) = error "orphan $nothing found"
+      norm' (i, CtrlIf flg e body alt)
+          = let (j, j') = (minimum $ map fst body, minimum $ map fst alt)
+                (deIndent, deIndent') = (\n -> i+(n-j), \n -> i+(n-j'))
+            in (i, CtrlIf flg e
+                     (norm $ map (deIndent *** id) body)
+                     (norm $ map (deIndent' *** id) alt))
+      norm' (i, CtrlElse) = error "orphan $else found"
                              
 {--
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
@@ -276,6 +298,7 @@ instance ToQ Expr where
     toQ (V v) = varE (mkName v)
     toQ (O o) = (varE (mkName o))
     toQ (E e) = concatToQ e
+    toQ (C c) = conE (mkName c)
 
     concatToQ xs = concatToQ' Nothing xs
         where
@@ -309,7 +332,9 @@ instance ToQ Line where
                            (concatToQ alt))
                      (lamE [varP (mkName b)] (concatToQ body)))
                (concatToQ e)
-    toQ (CtrlIf flg e body alt) = undefined
+    toQ (CtrlIf flg e body alt)
+        = condE (concatToQ e) (concatToQ body) (concatToQ alt)
+    toQ CtrlElse = error "illegal $else found"
     toQ (CtrlCase e body) = undefined
     toQ (CtrlOf e body) = undefined
     toQ (CtrlLet b e body)
