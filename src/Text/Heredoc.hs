@@ -264,48 +264,6 @@ arrange = norm . rev . foldl (flip push) []
       normsub i body = let j = minimum $ map fst body
                            deIndent n = i+(n-j)
                        in norm $ map (deIndent *** id) body
-                             
-{--
-arrange :: [(Indent, Line)] -> [(Indent, Line)]
-arrange [] = []
-arrange [x] = [x]
-arrange ((i, CtrlForall b e body):(j, next):xs)
-    | i < j = arrange $ (i, CtrlForall b e (arrange $ body ++ [(j-i, next)])):xs
-    | otherwise = (i, CtrlForall b e body):arrange ((j, next):xs)
-
-arrange ((i, CtrlMaybe False b e body alt):(j, CtrlNothing):xs)
-    | i == j = arrange $ (i, CtrlMaybe True b e (arrange body) alt):xs
-    | otherwise = error "Couldn't found $maybe statement"
-arrange ((i, CtrlMaybe False b e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlMaybe False b e (arrange $ body ++ [(j-1, next)]) alt):xs
-    | otherwise = (i, CtrlMaybe False b e body alt):arrange ((j, next):xs)
-arrange ((i, CtrlMaybe True b e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlMaybe True b e body (arrange $ alt ++ [(j-i, next)])):xs
-    | otherwise = (i, CtrlMaybe True b e body alt):arrange ((j, next):xs)
-
-arrange ((i, CtrlIf False e body alt):(j, CtrlElse):xs)
-    | i == j = arrange $ (i, CtrlIf True e (arrange body) alt):xs
-    | otherwise = error "Couldn't found $if statement"
-arrange ((i, CtrlIf False e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlIf False e (arrange $ body ++ [(j-i, next)]) alt):xs
-    | otherwise = (i, CtrlIf False e body alt):arrange ((j, next):xs)
-arrange ((i, CtrlIf True e body alt):(j, next):xs)
-    | i < j = arrange $ (i, CtrlIf True e body (arrange $ alt ++ [(j-i, next)])):xs
-    | otherwise = (i, CtrlIf True e body alt):arrange ((j, next):xs)
-
-arrange ((i, CtrlCase e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlCase e (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlCase e body):arrange ((j, next):xs)
-arrange ((i, CtrlOf e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlOf e (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlOf e body):arrange ((j, next):xs)
-
-arrange ((i, CtrlLet b e body):(j, next):xs)
-    | i < j = arrange ((i, CtrlLet b e (arrange $ body ++ [(j-i, next)])):xs)
-    | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
-
-arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
---}
 
 class ToQPat a where
     toQPat :: a -> Q Pat
