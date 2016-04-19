@@ -180,4 +180,64 @@ $maybe u <- mu
     ${u}(age not found)
 |]
 
+test7 :: String
+test7 = [heredoc|
+$if True
+  OK
+$else
+  NG
+|]
 
+test8 :: String
+test8 = [heredoc|
+$if 1==1
+  OK
+|]
+
+test8' :: String
+test8' = [heredoc|
+$if 1==2
+  OK
+|]
+
+test8'' :: String
+test8'' = [heredoc|
+$if 1==2
+$else
+  False
+|]
+
+test9 :: String
+test9 = let mu = Just "katsutoshi"
+            b = True
+        in [heredoc|
+Hello
+  $maybe u <- mu
+    $if b
+      OK => ${u}
+    $else
+      NG
+|]
+
+test9' :: String
+test9' = let mu = Just "katsutoshi"
+        in [heredoc|
+Hello
+  $maybe u <- mu
+    $if u=="katsutoshi"
+      OK => ${u}
+    $else
+      NG
+|]
+
+test9'' :: String
+test9'' = let b = True
+          in [heredoc|
+Hello
+  $if b
+    $maybe x <- Just "katsutoshi"
+      OK ${x}.
+    $nothing
+      Ooops.
+  $else
+|]
