@@ -307,3 +307,18 @@ test14' = [heredoc|
 $let x:y:z = 1:2:3:4:[5,6,7]
   ${show z} OK
 |]
+
+test14'' :: String
+test14'' = [heredoc|
+$let x:y:z = [1,2,3]:[4]:[5,6,7]:[]
+  ${show x} OK
+  ${show y} OK
+  ${show z} OK
+|]
+
+test14''' :: String
+test14''' = [heredoc|
+$let x:_:z = (1:2:[]):(4:[]):(5:[6,7]):[]
+  ${show x} OK
+  ${show z} OK
+|]
