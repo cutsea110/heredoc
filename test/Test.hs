@@ -236,7 +236,7 @@ test9'' = let b = True
 Hello
   $if b
     $maybe x <- Just "katsutoshi"
-      OK ${x}.
+      OK => ${x}.
     $nothing
       Ooops.
   $else
