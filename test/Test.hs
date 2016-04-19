@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
-module Main where
+module Test where
 
 import Language.Haskell.TH
 
@@ -322,3 +322,4 @@ $let x:_:z = (1:2:[]):(4:[]):(5:[6,7]):[]
   ${show x} OK
   ${show z} OK
 |]
+
