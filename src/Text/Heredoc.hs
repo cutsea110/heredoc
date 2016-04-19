@@ -4,6 +4,8 @@
 module Text.Heredoc where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow ((***))
+import Data.Function (on)
 import Data.Monoid ((<>))
 import Text.ParserCombinators.Parsec hiding (Line)
 import Text.ParserCombinators.Parsec.Error
@@ -28,19 +30,19 @@ type ChildBlock = [Line']
 type AltFlag = Bool
 
 data InLine = Raw String
-         | Quoted [Expr]
-           deriving Show
+            | Quoted [Expr]
+              deriving Show
 
 data Line = CtrlForall String [Expr] ChildBlock
-             | CtrlMaybe AltFlag String [Expr] ChildBlock ChildBlock
-             | CtrlNothing
-             | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
-             | CtrlElse
-             | CtrlCase [Expr] ChildBlock
-             | CtrlOf [Expr] ChildBlock
-             | CtrlLet String [Expr] ChildBlock
-             | Normal [InLine]
-               deriving Show
+          | CtrlMaybe AltFlag String [Expr] ChildBlock ChildBlock
+          | CtrlNothing
+          | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
+          | CtrlElse
+          | CtrlCase [Expr] ChildBlock
+          | CtrlOf [Expr] ChildBlock
+          | CtrlLet String [Expr] ChildBlock
+          | Normal [InLine]
+            deriving Show
 
 data Expr = S String
           | I Integer
@@ -177,7 +179,52 @@ raw :: Parser InLine
 raw = Raw <$> many1 (noneOf "$\n\r")
 
 ----
+arrange :: [(Indent, Line)] -> [(Indent, Line)]
+arrange = norm . rev . foldl (flip push) []
+    where
+      isCtrlNothing (_, CtrlNothing) = True
+      isCtrlNothing (_, _) = False
 
+      push x [] = x:[]
+      push x ss'@((_, Normal _):_) = x:ss'
+
+      push x@(i, _) ss'@((j, CtrlLet b e body):ss)
+          | i > j = (j, CtrlLet b e (push x body)):ss
+          | otherwise = x:ss'
+
+      push x@(i, _) ss'@((j, CtrlMaybe flg b e body alt):ss)
+          | i > j = if flg
+                    then (j, CtrlMaybe flg b e body (push x alt)):ss
+                    else (j, CtrlMaybe flg b e (push x body) alt):ss
+          | i == j && isCtrlNothing x
+              = if flg
+                then error "too many $nothing found"
+                else (j, CtrlMaybe True b e body alt):ss
+          | otherwise = x:ss'
+      push x ((j, CtrlNothing):_) = error "orphan $nothing found"
+
+      rev = foldr (\x xs -> xs ++ [rev' x]) []
+      rev' x@(_, Normal _) = x
+      rev' (i, CtrlLet b e body)
+          = (i, CtrlLet b e (rev body))
+      rev' (i, CtrlMaybe flg b e body alt)
+          = (i, CtrlMaybe flg b e (rev body) (rev alt))
+
+      norm = foldr (\x xs -> norm' x:xs) []
+      norm' x@(_, Normal _) = x
+      norm' (i, CtrlLet b e body)
+          = let j = minimum $ map fst body
+                deIndent n = i+(n-j)
+            in (i, CtrlLet b e (norm $ map (deIndent *** id) body))
+      norm' (i, CtrlMaybe flg b e body alt)
+          = let (j, j') = (minimum $ map fst body, minimum $ map fst alt)
+                (deIndent, deIndent') = (\n -> i+(n-j), \n -> i+(n-j'))
+            in (i, CtrlMaybe flg b e
+                     (norm $ map (deIndent *** id) body)
+                     (norm $ map (deIndent' *** id) alt))
+      norm' (i, CtrlNothing) = error "orphan $nothing found"
+                             
+{--
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
 arrange [] = []
 arrange [x] = [x]
@@ -217,6 +264,7 @@ arrange ((i, CtrlLet b e body):(j, next):xs)
     | otherwise = (i, CtrlLet b e body):arrange ((j, next):xs)
 
 arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
+--}
 
 class ToQ a where
     toQ :: a -> Q Exp

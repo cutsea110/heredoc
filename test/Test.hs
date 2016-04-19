@@ -146,9 +146,38 @@ $nothing
 
 test5' :: String
 test5' = let mu = Nothing
-        in [heredoc|
+         in [heredoc|
 $maybe u <- mu
   Hello ${u} san
 $nothing
   Bye
 |]
+
+test5'' :: String
+test5'' = let ma = Nothing :: Maybe Int
+          in [heredoc|
+$maybe a<-ma
+  ${show a}
+|]
+
+test6 :: String
+test6 = let mu = Just "katsutoshi"
+            ma = Just 45
+        in [heredoc|
+$maybe u <- mu
+  $maybe a <- ma
+    ${u}(${show a})
+|]
+
+test6' :: String
+test6' = let mu = Just "katsutoshi"
+             ma = Nothing :: Maybe Int
+         in [heredoc|
+$maybe u <- mu
+  $maybe a <- ma
+    ${u}(${show a})
+  $nothing
+    ${u}(age not found)
+|]
+
+
