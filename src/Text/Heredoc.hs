@@ -33,19 +33,20 @@ data InLine = Raw String
             | Quoted [Expr]
               deriving Show
 
-data Line = CtrlForall String [Expr] ChildBlock
-          | CtrlMaybe AltFlag String [Expr] ChildBlock ChildBlock
+data Line = CtrlForall [Expr] [Expr] ChildBlock
+          | CtrlMaybe AltFlag [Expr] [Expr] ChildBlock ChildBlock
           | CtrlNothing
           | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
           | CtrlElse
           | CtrlCase [Expr] [([Expr], ChildBlock)]
           | CtrlOf [Expr]
-          | CtrlLet String [Expr] ChildBlock
+          | CtrlLet [Expr] [Expr] ChildBlock
           | Normal [InLine]
             deriving Show
 
 data Expr = S String
           | I Integer
+          | W
           | V String
           | V' String
           | C String
@@ -113,7 +114,11 @@ ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlOf :: Parser Line
-ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> expr <* spaceTabs)
+ctrlOf = CtrlOf <$> bindVal
+    where
+      bindVal = string "$of" *> spaceTabs *>
+                binding
+                <* spaceTabs
 
 ctrlLet :: Parser Line
 ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
@@ -122,9 +127,14 @@ ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
                 binding
                 <* spaceTabs <* string "=" <* spaceTabs
 
--- TODO: support pattern match
-binding :: Parser String
-binding = many1 (letter <|> digit <|> char '_' <|> char '\'')
+binding :: Parser [Expr]
+binding = spaceTabs *> many1 term
+    where
+      term :: Parser Expr
+      term = (C <$> con <|>
+              (try (V <$> ((++) <$> wild <*> many1 (noneOf " \t\n\r"))) <|>
+               try (wild >> pure W) <|>
+               V <$> var)) <* spaceTabs
 
 expr :: Parser [Expr]
 expr = spaceTabs *> many1 term
@@ -136,7 +146,9 @@ expr = spaceTabs *> many1 term
               C  <$> con <|>
               I  <$> integer <|>
               V' <$> var' <|>
-              V  <$> var) <* spaceTabs
+              (try (V <$> ((++) <$> wild <*> many1 (noneOf " \t\n\r"))) <|>
+               try (wild >> pure W) <|>
+               V <$> var)) <* spaceTabs
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -155,6 +167,9 @@ var = many1 (letter <|> digit <|> char '_' <|> char '\'')
 
 var' :: Parser String
 var' = char '`' *> var <* char '`'
+
+wild :: Parser String
+wild = string "_"
 
 con :: Parser String
 con = (:) <$> upper <*> many (letter <|> digit <|> char '_' <|> char '\'')
@@ -272,14 +287,15 @@ class ToQPat a where
 instance ToQPat Expr where
     toQPat (S s) = litP (stringL s)
     toQPat (I i) = litP (integerL i)
-    toQPat (V "_") = wildP
+    toQPat W     = wildP
     toQPat (V v) = varP (mkName v)
     toQPat (O o) = varP (mkName o)
     toQPat (E e) = concatToQPat e
     toQPat (C c) = conP (mkName c) []
 
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
-    concatToQPat ((V "_"):[]) = wildP
+    concatToQPat ((V v):args) = varP (mkName v)
+    concatToQPat (W:[]) = wildP
     concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
@@ -289,6 +305,7 @@ class ToQExp a where
 instance ToQExp Expr where
     toQExp (S s) = litE (stringL s)
     toQExp (I i) = litE (integerL i)
+    toQExp W     = error "wildcard is NOT legal expression"
     toQExp (V v) = varE (mkName v)
     toQExp (O o) = varE (mkName o)
     toQExp (E e) = concatToQExp e
@@ -323,7 +340,7 @@ instance ToQExp Line where
     toQExp (CtrlForall b e body) = undefined
     toQExp (CtrlMaybe flg b e body alt)
         = caseE (concatToQExp e)
-                [ match (conP 'Just [toQPat (V b)])
+                [ match (conP 'Just [concatToQPat b])
                         (normalB (concatToQExp body))
                         []
                 , match (conP 'Nothing [])
@@ -341,7 +358,7 @@ instance ToQExp Line where
                                      []
     toQExp (CtrlOf e) = error "illegal $of found"
     toQExp (CtrlLet b e body)
-        = letE [valD (varP (mkName b)) (normalB $ concatToQExp e) []]
+        = letE [valD (concatToQPat b) (normalB $ concatToQExp e) []]
                (concatToQExp body)
     toQExp (Normal xs) = concatToQExp xs
 

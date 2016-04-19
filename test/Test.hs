@@ -263,3 +263,18 @@ $case x
   $of _
     P~~~~~~~
 |]
+
+data Person = Person String Int Gender deriving Show
+
+test12 :: String
+test12 = let mp = Just (Person "Katsutoshi" 45 Male)
+         in [heredoc|
+$maybe Person name age sex <- mp
+  $case sex
+    $of Male
+      ${name}(${show age}) - 男
+    $of Female
+      ${name}(${show age}) - 女
+    $of _
+      ${name}(${show age}) - ?
+|]
