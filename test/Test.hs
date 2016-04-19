@@ -249,3 +249,17 @@ $maybe _ <- Just 1
 $nothing
   NG
 |]
+
+data Gender = Male | Female | NewHalf deriving Show
+
+test11 :: String
+test11 = let x = Female
+         in [heredoc|
+$case x
+  $of Male
+    Otoko
+  $of Female
+    Onna
+  $of _
+    P~~~~~~~
+|]

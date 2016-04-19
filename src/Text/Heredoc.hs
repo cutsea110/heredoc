@@ -189,6 +189,7 @@ arrange = norm . rev . foldl (flip push) []
       isCtrlOf (_, CtrlOf _) = True
       isCtrlOf _ = False
 
+      push :: Line' -> [Line'] -> [Line']
       push x [] = x:[]
       push x ss'@((_, Normal _):_) = x:ss'
 
@@ -226,11 +227,13 @@ arrange = norm . rev . foldl (flip push) []
               else x:ss'
       push x ((j, CtrlOf _):_) = error "orphan $of found"
 
-      push' x@(i, CtrlOf e) alts = (e, [x]):alts
+      push' x@(i, CtrlOf e) alts = (e, []):alts
       push' x [] = error "$of not found"
       push' x ((e, body):alts) = (e, (push x body)):alts
 
+      rev :: [Line'] -> [Line']
       rev = foldr (\x xs -> xs ++ [rev' x]) []
+      rev' :: Line' -> Line'
       rev' x@(_, Normal _) = x
       rev' (i, CtrlLet b e body)
           = (i, CtrlLet b e (rev body))
@@ -241,28 +244,26 @@ arrange = norm . rev . foldl (flip push) []
       rev' (i, CtrlCase e alts)
           = (i, CtrlCase e (map (id *** rev) $ reverse alts))
 
+      norm :: [Line'] -> [Line']
       norm = foldr (\x xs -> norm' x:xs) []
+      norm' :: Line' -> Line'
       norm' x@(_, Normal _) = x
       norm' (i, CtrlLet b e body)
-          = let j = minimum $ map fst body
-                deIndent n = i+(n-j)
-            in (i, CtrlLet b e (norm $ map (deIndent *** id) body))
+          = (i, CtrlLet b e (normsub i body))
       norm' (i, CtrlMaybe flg b e body alt)
-          = let (j, j') = (minimum $ map fst body, minimum $ map fst alt)
-                (deIndent, deIndent') = (\n -> i+(n-j), \n -> i+(n-j'))
-            in (i, CtrlMaybe flg b e
-                     (norm $ map (deIndent *** id) body)
-                     (norm $ map (deIndent' *** id) alt))
+          = (i, CtrlMaybe flg b e (normsub i body) (normsub i alt))
       norm' (i, CtrlNothing) = error "orphan $nothing found"
       norm' (i, CtrlIf flg e body alt)
-          = let (j, j') = (minimum $ map fst body, minimum $ map fst alt)
-                (deIndent, deIndent') = (\n -> i+(n-j), \n -> i+(n-j'))
-            in (i, CtrlIf flg e
-                     (norm $ map (deIndent *** id) body)
-                     (norm $ map (deIndent' *** id) alt))
+          = (i, CtrlIf flg e (normsub i body) (normsub i alt))
       norm' (i, CtrlElse) = error "orphan $else found"
-      norm' (i, CtrlCase e alts) = undefined
+      norm' (i, CtrlCase e alts)
+          = (i, CtrlCase e (map (id *** normsub i) alts))
       norm' (i, CtrlOf _) = error "orphan $of found"
+
+      normsub :: Indent -> [Line'] -> [Line']
+      normsub i body = let j = minimum $ map fst body
+                           deIndent n = i+(n-j)
+                       in norm $ map (deIndent *** id) body
                              
 {--
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
@@ -320,6 +321,7 @@ instance ToQPat Expr where
     toQPat (C c) = conP (mkName c) []
 
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
+    concatToQPat ((V "_"):[]) = wildP
     concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
@@ -362,10 +364,14 @@ instance ToQExp InLine where
 instance ToQExp Line where
     toQExp (CtrlForall b e body) = undefined
     toQExp (CtrlMaybe flg b e body alt)
-        = appE (appE (appE (varE 'maybe)
-                           (concatToQExp alt))
-                     (lamE [varP (mkName b)] (concatToQExp body)))
-               (concatToQExp e)
+        = caseE (concatToQExp e)
+                [ match (conP 'Just [toQPat (V b)])
+                        (normalB (concatToQExp body))
+                        []
+                , match (conP 'Nothing [])
+                        (normalB (concatToQExp alt))
+                         []
+                ]
     toQExp (CtrlIf flg e body alt)
         = condE (concatToQExp e) (concatToQExp body) (concatToQExp alt)
     toQExp CtrlElse = error "illegal $else found"
