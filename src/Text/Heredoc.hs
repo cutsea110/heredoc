@@ -18,7 +18,7 @@ heredoc = QuasiQuoter { quoteExp = heredocFromString }
 -- | C# code gen
 heredocFromString :: String -> Q Exp
 heredocFromString
-    = either err (concatToQ . arrange) . parse doc "heredoc" . (<>"\n")
+    = either err (concatToQExp . arrange) . parse doc "heredoc" . (<>"\n")
     where
       err = infixE <$> Just . pos <*> pure (varE '(++)) <*> Just . msg
       pos = litE <$> (stringL <$> show . errorPos)
@@ -38,8 +38,8 @@ data Line = CtrlForall String [Expr] ChildBlock
           | CtrlNothing
           | CtrlIf AltFlag [Expr] ChildBlock ChildBlock
           | CtrlElse
-          | CtrlCase [Expr] ChildBlock
-          | CtrlOf [Expr] ChildBlock
+          | CtrlCase [Expr] [([Expr], ChildBlock)]
+          | CtrlOf [Expr]
           | CtrlLet String [Expr] ChildBlock
           | Normal [InLine]
             deriving Show
@@ -94,7 +94,7 @@ ctrlForall = CtrlForall <$> bindVal <*> expr <*> pure []
                 <* spaceTabs <* string "<-" <* spaceTabs
 
 ctrlMaybe :: Parser Line
-ctrlMaybe = CtrlMaybe <$> pure False <*> bindVal<*> expr <*> pure [] <*> pure []
+ctrlMaybe = CtrlMaybe <$> pure False <*> bindVal <*> expr <*> pure [] <*> pure []
     where
       bindVal = string "$maybe" *> spaceTabs *>
                 binding
@@ -113,7 +113,7 @@ ctrlCase :: Parser Line
 ctrlCase = CtrlCase <$> (string "$case" *> spaceTabs *> expr <* spaceTabs) <*> pure []
 
 ctrlOf :: Parser Line
-ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> expr <* spaceTabs) <*> pure []
+ctrlOf = CtrlOf <$> (string "$of" *> spaceTabs *> expr <* spaceTabs)
 
 ctrlLet :: Parser Line
 ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
@@ -124,7 +124,7 @@ ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
 
 -- TODO: support pattern match
 binding :: Parser String
-binding = many1 (letter <|> digit <|> char '_')
+binding = many1 (letter <|> digit <|> char '_' <|> char '\'')
 
 expr :: Parser [Expr]
 expr = spaceTabs *> many1 term
@@ -186,6 +186,8 @@ arrange = norm . rev . foldl (flip push) []
       isCtrlNothing _ = False
       isCtrlElse (_, CtrlElse) = True
       isCtrlElse _ = False
+      isCtrlOf (_, CtrlOf _) = True
+      isCtrlOf _ = False
 
       push x [] = x:[]
       push x ss'@((_, Normal _):_) = x:ss'
@@ -216,6 +218,18 @@ arrange = norm . rev . foldl (flip push) []
           | otherwise = x:ss'
       push x ((j, CtrlElse):_) = error "orphan $else found"
 
+      push x@(i, _) ss'@((j, CtrlCase e alts):ss)
+          | i > j = (j, CtrlCase e (push' x alts)):ss
+          | otherwise
+            = if isCtrlOf x
+              then error "orphan $of found"
+              else x:ss'
+      push x ((j, CtrlOf _):_) = error "orphan $of found"
+
+      push' x@(i, CtrlOf e) alts = (e, [x]):alts
+      push' x [] = error "$of not found"
+      push' x ((e, body):alts) = (e, (push x body)):alts
+
       rev = foldr (\x xs -> xs ++ [rev' x]) []
       rev' x@(_, Normal _) = x
       rev' (i, CtrlLet b e body)
@@ -224,6 +238,8 @@ arrange = norm . rev . foldl (flip push) []
           = (i, CtrlMaybe flg b e (rev body) (rev alt))
       rev' (i, CtrlIf flg e body alt)
           = (i, CtrlIf flg e (rev body) (rev alt))
+      rev' (i, CtrlCase e alts)
+          = (i, CtrlCase e (map (id *** rev) $ reverse alts))
 
       norm = foldr (\x xs -> norm' x:xs) []
       norm' x@(_, Normal _) = x
@@ -245,6 +261,8 @@ arrange = norm . rev . foldl (flip push) []
                      (norm $ map (deIndent *** id) body)
                      (norm $ map (deIndent' *** id) alt))
       norm' (i, CtrlElse) = error "orphan $else found"
+      norm' (i, CtrlCase e alts) = undefined
+      norm' (i, CtrlOf _) = error "orphan $of found"
                              
 {--
 arrange :: [(Indent, Line)] -> [(Indent, Line)]
@@ -288,77 +306,86 @@ arrange ((i, CtrlLet b e body):(j, next):xs)
 arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
 --}
 
-class ToQ a where
-    toQ :: a -> Q Exp
-    concatToQ :: [a] -> Q Exp
+class ToQPat a where
+    toQP :: a -> Q Pat
+    concatToQP :: [a] -> Q Pat
 
-instance ToQ Expr where
-    toQ (S s) = litE (stringL s)
-    toQ (I i) = litE (integerL i)
-    toQ (V v) = varE (mkName v)
-    toQ (O o) = (varE (mkName o))
-    toQ (E e) = concatToQ e
-    toQ (C c) = conE (mkName c)
+class ToQExp a where
+    toQExp :: a -> Q Exp
+    concatToQExp :: [a] -> Q Exp
 
-    concatToQ xs = concatToQ' Nothing xs
+instance ToQExp Expr where
+    toQExp (S s) = litE (stringL s)
+    toQExp (I i) = litE (integerL i)
+    toQExp (V v) = varE (mkName v)
+    toQExp (O o) = (varE (mkName o))
+    toQExp (E e) = concatToQExp e
+    toQExp (C c) = conE (mkName c)
+
+    concatToQExp xs = concatToQ' Nothing xs
         where
           concatToQ' (Just acc) [] = acc
-          concatToQ' Nothing  [x] = toQ x
-          concatToQ' Nothing (x:xs) = concatToQ' (Just (toQ x)) xs
+          concatToQ' Nothing  [x] = toQExp x
+          concatToQ' Nothing (x:xs) = concatToQ' (Just (toQExp x)) xs
           concatToQ' (Just acc) ((O o):xs)
               = infixE (Just acc)
                        (varE (mkName o))
-                       (Just (concatToQ xs))
+                       (Just (concatToQExp xs))
           concatToQ' (Just acc) ((V' v'):xs)
               = infixE (Just acc)
                        (varE (mkName v'))
-                       (Just (concatToQ xs))
+                       (Just (concatToQExp xs))
           concatToQ' (Just acc) (x:xs)
-              = concatToQ' (Just (appE acc (toQ x))) xs
+              = concatToQ' (Just (appE acc (toQExp x))) xs
 
-instance ToQ InLine where
-    toQ (Raw s) = litE (stringL s)
-    toQ (Quoted expr) = concatToQ expr
+instance ToQExp InLine where
+    toQExp (Raw s) = litE (stringL s)
+    toQExp (Quoted expr) = concatToQExp expr
 
-    concatToQ [] = litE (stringL "")
-    concatToQ (x:xs) = infixE (Just (toQ x))
-                              (varE '(++))
-                              (Just (concatToQ xs))
+    concatToQExp [] = litE (stringL "")
+    concatToQExp (x:xs) = infixE (Just (toQExp x))
+                                 (varE '(++))
+                                 (Just (concatToQExp xs))
 
-instance ToQ Line where
-    toQ (CtrlForall b e body) = undefined
-    toQ (CtrlMaybe flg b e body alt)
+instance ToQExp Line where
+    toQExp (CtrlForall b e body) = undefined
+    toQExp (CtrlMaybe flg b e body alt)
         = appE (appE (appE (varE 'maybe)
-                           (concatToQ alt))
-                     (lamE [varP (mkName b)] (concatToQ body)))
-               (concatToQ e)
-    toQ (CtrlIf flg e body alt)
-        = condE (concatToQ e) (concatToQ body) (concatToQ alt)
-    toQ CtrlElse = error "illegal $else found"
-    toQ (CtrlCase e body) = undefined
-    toQ (CtrlOf e body) = undefined
-    toQ (CtrlLet b e body)
-        = letE [valD (varP (mkName b)) (normalB $ concatToQ e) []]
-               (concatToQ body)
-    toQ (Normal xs) = concatToQ xs
+                           (concatToQExp alt))
+                     (lamE [varP (mkName b)] (concatToQExp body)))
+               (concatToQExp e)
+    toQExp (CtrlIf flg e body alt)
+        = condE (concatToQExp e) (concatToQExp body) (concatToQExp alt)
+    toQExp CtrlElse = error "illegal $else found"
+    toQExp (CtrlCase e alts)
+        = caseE (concatToQExp e) (map mkMatch alts)
+        where
+          mkMatch (e', body) = undefined
+    toQExp (CtrlOf e) = error "illegal $of found"
+    toQExp (CtrlLet b e body)
+        = letE [valD (varP (mkName b)) (normalB $ concatToQExp e) []]
+               (concatToQExp body)
+    toQExp (Normal xs) = concatToQExp xs
 
-    concatToQ (x:[]) = toQ x
-    concatToQ (x:xs) = infixE (Just (toQ x))
-                              (varE '(++))
-                              (Just (concatToQ xs))
+    concatToQExp (x:[]) = toQExp x
+    concatToQExp (x:xs) = infixE (Just (toQExp x))
+                                 (varE '(++))
+                                 (Just (concatToQExp xs))
 
-instance ToQ Line' where
-    toQ (n, x@(Normal _)) = infixE (Just (litE (stringL (replicate n ' '))))
-                                   (varE '(++))
-                                   (Just (toQ x))
-    toQ (n, x) =  toQ x -- Ctrl*
+instance ToQExp Line' where
+    toQExp (n, x@(Normal _))
+        = infixE (Just (litE (stringL (replicate n ' '))))
+                 (varE '(++))
+                 (Just (toQExp x))
+    toQExp (n, x) =  toQExp x -- Ctrl*
 
-    concatToQ [] = litE (stringL "")
-    concatToQ (x@(_, Normal _):xs) = infixE (Just (infixE (Just (toQ x))
-                                            (varE '(++))
-                                            (Just (litE (stringL "\n")))))
-                              (varE '(++))
-                              (Just (concatToQ xs))
-    concatToQ (x:xs) = infixE (Just (toQ x))
-                              (varE '(++))
-                              (Just (concatToQ xs))
+    concatToQExp [] = litE (stringL "")
+    concatToQExp (x@(_, Normal _):xs)
+        = infixE (Just (infixE (Just (toQExp x))
+                               (varE '(++))
+                               (Just (litE (stringL "\n")))))
+                 (varE '(++))
+                 (Just (concatToQExp xs))
+    concatToQExp (x:xs) = infixE (Just (toQExp x))
+                                 (varE '(++))
+                                 (Just (concatToQExp xs))

@@ -241,3 +241,11 @@ Hello
       Ooops.
   $else
 |]
+
+test10 :: String
+test10 = [heredoc|
+$maybe _ <- Just 1
+  OK
+$nothing
+  NG
+|]
