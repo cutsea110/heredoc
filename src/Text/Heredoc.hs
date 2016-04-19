@@ -307,8 +307,20 @@ arrange ((i, Normal x):xs) = (i, Normal x):arrange xs
 --}
 
 class ToQPat a where
-    toQP :: a -> Q Pat
-    concatToQP :: [a] -> Q Pat
+    toQPat :: a -> Q Pat
+    concatToQPat :: [a] -> Q Pat
+
+instance ToQPat Expr where
+    toQPat (S s) = litP (stringL s)
+    toQPat (I i) = litP (integerL i)
+    toQPat (V "_") = wildP
+    toQPat (V v) = varP (mkName v)
+    toQPat (O o) = varP (mkName o)
+    toQPat (E e) = concatToQPat e
+    toQPat (C c) = conP (mkName c) []
+
+    concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
+    concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
     toQExp :: a -> Q Exp
@@ -318,7 +330,7 @@ instance ToQExp Expr where
     toQExp (S s) = litE (stringL s)
     toQExp (I i) = litE (integerL i)
     toQExp (V v) = varE (mkName v)
-    toQExp (O o) = (varE (mkName o))
+    toQExp (O o) = varE (mkName o)
     toQExp (E e) = concatToQExp e
     toQExp (C c) = conE (mkName c)
 
@@ -360,7 +372,9 @@ instance ToQExp Line where
     toQExp (CtrlCase e alts)
         = caseE (concatToQExp e) (map mkMatch alts)
         where
-          mkMatch (e', body) = undefined
+          mkMatch (e', body) = match (concatToQPat e')
+                                     (normalB (concatToQExp body))
+                                     []
     toQExp (CtrlOf e) = error "illegal $of found"
     toQExp (CtrlLet b e body)
         = letE [valD (varP (mkName b)) (normalB $ concatToQExp e) []]
