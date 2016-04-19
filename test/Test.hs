@@ -295,3 +295,15 @@ $let (Person n1 a1 g1, Person n2 a2 g2) = (p, p')
   ${n1}(${show a1}) ${show g1}
   ${n2}(${show a2}) ${show g2}
 |]
+
+test14 :: String
+test14 = [heredoc|
+$let x:xs = 1:[]
+  ${show x} OK
+|]
+
+test14' :: String
+test14' = [heredoc|
+$let x:y:z = 1:2:3:4:[5,6,7]
+  ${show z} OK
+|]

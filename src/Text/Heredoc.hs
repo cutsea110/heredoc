@@ -54,6 +54,8 @@ data Expr = S String
           | O' String
           | E [Expr]
           | T [[Expr]]
+          | L [[Expr]]
+          | N
             deriving Show
 
 eol :: Parser String
@@ -134,6 +136,9 @@ binding = spaceTabs *> many1 term
       term :: Parser Expr
       term = (C <$> con <|>
               T <$> tuple <|>
+              (try (nil >> pure N) <|>
+               try (L <$> list) <|>
+               try (O <$> string ":")) <|> -- only pattern operator
               (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
                V <$> var)) <* spaceTabs
@@ -144,7 +149,9 @@ expr = spaceTabs *> many1 term
       term :: Parser Expr
       term = (S  <$> str <|>
               T  <$> tuple <|>
-              O  <$> op <|>
+              (try (nil >> pure N) <|>
+               try (L <$> list) <|>
+               try (O <$> op)) <|>
               (try (O' <$> op') <|> try (E  <$> subexp)) <|>
               C  <$> con <|>
               I  <$> integer <|>
@@ -156,6 +163,9 @@ expr = spaceTabs *> many1 term
 
 tuple :: Parser [[Expr]]
 tuple = char '(' *> sepBy expr (char ',')  <* char ')'
+
+list :: Parser [[Expr]]
+list = char '[' *> sepBy expr (char ',') <* char ']'
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -170,7 +180,7 @@ subexp :: Parser [Expr]
 subexp = char '(' *> expr <* char ')'
 
 var :: Parser String
-var = many1 (letter <|> digit <|> char '_' <|> char '\'')
+var = (:) <$> lower <*> many (alphaNum <|> oneOf "_'")
 
 var' :: Parser String
 var' = char '`' *> var <* char '`'
@@ -178,8 +188,11 @@ var' = char '`' *> var <* char '`'
 wild :: Parser String
 wild = string "_"
 
+nil :: Parser String
+nil = string "[]"
+
 con :: Parser String
-con = (:) <$> upper <*> many (letter <|> digit <|> char '_' <|> char '\'')
+con = (:) <$> upper <*> many (alphaNum <|> oneOf "_'")
 
 op :: Parser String
 op = many1 (oneOf ":!#$%&*+./<=>?@\\^|-~")
@@ -301,8 +314,12 @@ instance ToQPat Expr where
     toQPat (C c) = conP (mkName c) []
     toQPat (T t) = tupP $ map concatToQPat t
 
+    -- special case for list
+    concatToQPat (x:O ":":xs) = infixP (toQPat x)
+                                       (mkName ":")
+                                       (concatToQPat xs)
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
-    concatToQPat ((V v):args) = varP (mkName v)
+    concatToQPat ((V v):args) = varP (mkName v) -- OK?
     concatToQPat ((T t):[]) = toQPat (T t) -- OK?
     concatToQPat (W:[]) = wildP -- OK?
     concatToQPat _ = error "don't support this pattern"
@@ -320,12 +337,19 @@ instance ToQExp Expr where
     toQExp (E e) = concatToQExp e
     toQExp (C c) = conE (mkName c)
     toQExp (T t) = tupE $ map concatToQExp t
+    toQExp N     = listE []
+    toQExp (L l) = listE $ map concatToQExp l
 
     concatToQExp xs = concatToQ' Nothing xs
         where
           concatToQ' (Just acc) [] = acc
           concatToQ' Nothing  [x] = toQExp x
           concatToQ' Nothing (x:xs) = concatToQ' (Just (toQExp x)) xs
+          -- spacial case for list
+          concatToQ' (Just acc) ((O ":"):xs)
+              = infixE (Just acc)
+                       (conE (mkName ":"))
+                       (Just (concatToQExp xs))
           concatToQ' (Just acc) ((O o):xs)
               = infixE (Just acc)
                        (varE (mkName o))
