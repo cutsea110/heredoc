@@ -103,6 +103,18 @@ main = do
   putStr servantClientCode
 
 --}
+-- |
+-- >>> :set -XQuasiQuotes
+-- >>> [heredoc|Hello,World|]
+-- "Hello,World\n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- Hello,World
+-- |]
+-- :}
+-- "\n Hello,World\n \n"
 
 test0 :: String
 test0 = [heredoc|hello,world|]
