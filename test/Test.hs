@@ -55,7 +55,7 @@ namespace ServantClientBook
           {
               var client = new ServantClient();
               var queryparams = new List<string> {
-                  $:forall qp <- queryparams ep
+                  $forall qp <- queryparams ep
                     _${qp}.HasValue ? $"_${qp}={_${qp}.Value}" : null,
               }.Where(e => !string.IsNullOrEmpty(e));
               var qp= queryparams.Count() > 0 ? $"?{string.Join("&", queryparams)}" : "";
@@ -277,4 +277,21 @@ $maybe Person name age sex <- mp
       ${name}(${show age}) - 女
     $of _
       ${name}(${show age}) - ?
+|]
+
+test13 :: String
+test13 = let p = (Person "katsutoshi" 45 Male, Person "keiko" 44 Female)
+         in [heredoc|
+$let (Person n1 a1 g1, Person n2 a2 g2) = p
+  ${n1}(${show a1}) ${show g1}
+  ${n2}(${show a2}) ${show g2}
+|]
+
+test13' :: String
+test13' = let p = Person "katsutoshi" 45 Male
+              p' = Person "keiko" 44 Female
+         in [heredoc|
+$let (Person n1 a1 g1, Person n2 a2 g2) = (p, p')
+  ${n1}(${show a1}) ${show g1}
+  ${n2}(${show a2}) ${show g2}
 |]

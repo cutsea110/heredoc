@@ -53,6 +53,7 @@ data Expr = S String
           | O String
           | O' String
           | E [Expr]
+          | T [[Expr]]
             deriving Show
 
 eol :: Parser String
@@ -132,7 +133,8 @@ binding = spaceTabs *> many1 term
     where
       term :: Parser Expr
       term = (C <$> con <|>
-              (try (V <$> ((++) <$> wild <*> many1 (noneOf " \t\n\r"))) <|>
+              T <$> tuple <|>
+              (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
                V <$> var)) <* spaceTabs
 
@@ -141,14 +143,19 @@ expr = spaceTabs *> many1 term
     where
       term :: Parser Expr
       term = (S  <$> str <|>
+              T  <$> tuple <|>
               O  <$> op <|>
               (try (O' <$> op') <|> try (E  <$> subexp)) <|>
               C  <$> con <|>
               I  <$> integer <|>
               V' <$> var' <|>
-              (try (V <$> ((++) <$> wild <*> many1 (noneOf " \t\n\r"))) <|>
+              (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
                V <$> var)) <* spaceTabs
+
+
+tuple :: Parser [[Expr]]
+tuple = char '(' *> sepBy expr (char ',')  <* char ')'
 
 integer :: Parser Integer
 integer = read <$> many1 digit
@@ -292,10 +299,12 @@ instance ToQPat Expr where
     toQPat (O o) = varP (mkName o)
     toQPat (E e) = concatToQPat e
     toQPat (C c) = conP (mkName c) []
+    toQPat (T t) = tupP $ map concatToQPat t
 
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
     concatToQPat ((V v):args) = varP (mkName v)
-    concatToQPat (W:[]) = wildP
+    concatToQPat ((T t):[]) = toQPat (T t) -- OK?
+    concatToQPat (W:[]) = wildP -- OK?
     concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
@@ -310,6 +319,7 @@ instance ToQExp Expr where
     toQExp (O o) = varE (mkName o)
     toQExp (E e) = concatToQExp e
     toQExp (C c) = conE (mkName c)
+    toQExp (T t) = tupE $ map concatToQExp t
 
     concatToQExp xs = concatToQ' Nothing xs
         where
