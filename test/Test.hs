@@ -248,126 +248,153 @@ main = do
 -- |]
 -- :}
 -- "\n False\n \n"
-test8'' :: String
-test8'' = [heredoc|
-$if 1==2
-$else
-  False
-|]
-
-test9 :: String
-test9 = let mu = Just "katsutoshi"
-            b = True
-        in [heredoc|
-Hello
-  $maybe u <- mu
-    $if b
-      OK => ${u}
-    $else
-      NG
-|]
-
-test9' :: String
-test9' = let mu = Just "katsutoshi"
-        in [heredoc|
-Hello
-  $maybe u <- mu
-    $if u=="katsutoshi"
-      OK => ${u}
-    $else
-      NG
-|]
-
-test9'' :: String
-test9'' = let b = True
-          in [heredoc|
-Hello
-  $if b
-    $maybe x <- Just "katsutoshi"
-      OK => ${x}.
-    $nothing
-      Ooops.
-  $else
-|]
-
-test10 :: String
-test10 = [heredoc|
-$maybe _ <- Just 1
-  OK
-$nothing
-  NG
-|]
-
-data Gender = Male | Female | NewHalf deriving Show
-
-test11 :: String
-test11 = let x = Female
-         in [heredoc|
-$case x
-  $of Male
-    Otoko
-  $of Female
-    Onna
-  $of _
-    P~~~~~~~
-|]
-
-data Person = Person String Int Gender deriving Show
-
-test12 :: String
-test12 = let mp = Just (Person "Katsutoshi" 45 Male)
-         in [heredoc|
-$maybe Person name age sex <- mp
-  $case sex
-    $of Male
-      ${name}(${show age}) - 男
-    $of Female
-      ${name}(${show age}) - 女
-    $of _
-      ${name}(${show age}) - ?
-|]
-
-test13 :: String
-test13 = let p = (Person "katsutoshi" 45 Male, Person "keiko" 44 Female)
-         in [heredoc|
-$let (Person n1 a1 g1, Person n2 a2 g2) = p
-  ${n1}(${show a1}) ${show g1}
-  ${n2}(${show a2}) ${show g2}
-|]
-
-test13' :: String
-test13' = let p = Person "katsutoshi" 45 Male
-              p' = Person "keiko" 44 Female
-         in [heredoc|
-$let (Person n1 a1 g1, Person n2 a2 g2) = (p, p')
-  ${n1}(${show a1}) ${show g1}
-  ${n2}(${show a2}) ${show g2}
-|]
-
-test14 :: String
-test14 = [heredoc|
-$let x:xs = 1:[]
-  ${show x} OK
-|]
-
-test14' :: String
-test14' = [heredoc|
-$let x:y:z = 1:2:3:4:[5,6,7]
-  ${show z} OK
-|]
-
-test14'' :: String
-test14'' = [heredoc|
-$let x:y:z = [1,2,3]:[4]:[5,6,7]:[]
-  ${show x} OK
-  ${show y} OK
-  ${show z} OK
-|]
-
-test14''' :: String
-test14''' = [heredoc|
-$let x:_:z = (1:2:[]):(4:[]):(5:[6,7]):[]
-  ${show x} OK
-  ${show z} OK
-|]
-
+--
+-- |
+-- >>> :{
+-- let mu = Just "katsutoshi"
+--     b = True
+-- in [heredoc|
+-- Hello
+--   $maybe u <- mu
+--    $if b
+--      OK => ${u}
+--    $else
+--      NG
+-- |]
+-- :}
+-- "\n Hello\n   OK => katsutoshi\n \n"
+--
+-- |
+-- >>> :{
+-- let mu = Just "katsutoshi"
+-- in [heredoc|
+-- Hello
+--   $maybe u <- mu
+--     $if u=="katsutoshi"
+--       OK => ${u}
+--     $else
+--       NG
+-- |]
+-- :}
+-- "\n Hello\n   OK => katsutoshi\n \n"
+--
+-- |
+-- >>> :{
+-- let b = True
+-- in [heredoc|
+-- Hello
+--   $if b
+--     $maybe x <- Just "katsutoshi"
+--       OK => ${x}.
+--     $nothing
+--       Ooops.
+--   $else
+-- |]
+-- :}
+-- "\n Hello\n   OK => katsutoshi.\n \n"
+--
+-- |
+-- >>> :{
+--  [heredoc|
+-- $maybe _ <- Just 1
+--   OK
+-- $nothing
+--   NG
+-- |]
+-- :}
+-- "\n OK\n \n"
+--
+-- >>> data Gender = Male | Female | NewHalf deriving Show
+-- >>> :{
+-- let x = Female
+-- in [heredoc|
+-- $case x
+--   $of Male
+--     Otoko
+--   $of Female
+--     Onna
+--   $of _
+--     P~~~~~~~
+-- |]
+-- :}
+-- "\n Onna\n \n"
+--
+-- |
+-- >>> data Person = Person String Int Gender deriving Show
+-- >>> :{
+-- let mp = Just (Person "Katsutoshi" 45 Male)
+-- in [heredoc|
+-- $maybe Person name age sex <- mp
+--   $case sex
+--     $of Male
+--       ${name}(${show age}) - Otoko
+--     $of Female
+--       ${name}(${show age}) - Onna
+--     $of _
+--       ${name}(${show age}) - ?
+-- |]
+-- :}
+-- "\n Katsutoshi(45) - Otoko\n \n"
+--
+-- |
+-- >>> :{
+-- let p = (Person "katsutoshi" 45 Male, Person "keiko" 44 Female)
+-- in [heredoc|
+-- $let (Person n1 a1 g1, Person n2 a2 g2) = p
+--   ${n1}(${show a1}) ${show g1}
+--   ${n2}(${show a2}) ${show g2}
+-- |]
+-- :}
+-- "\n katsutoshi(45) Male\n keiko(44) Female\n \n"
+--
+-- |
+-- >>> :{
+-- let p = Person "katsutoshi" 45 Male
+--     p' = Person "keiko" 44 Female
+-- in [heredoc|
+-- $let (Person n1 a1 g1, Person n2 a2 g2) = (p, p')
+--   ${n1}(${show a1}) ${show g1}
+--   ${n2}(${show a2}) ${show g2}
+-- |]
+-- :}
+-- "\n katsutoshi(45) Male\n keiko(44) Female\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $let x:xs = 1:[]
+--   ${show x} OK
+-- |]
+-- :}
+-- "\n 1 OK\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $let x:y:z = 1:2:3:4:[5,6,7]
+--   ${show z} OK
+-- |]
+-- :}
+-- "\n [3,4,5,6,7] OK\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $let x:y:z = [1,2,3]:[4]:[5,6,7]:[]
+--   ${show x} OK
+--   ${show y} OK
+--   ${show z} OK
+-- |]
+-- :}
+-- "\n [1,2,3] OK\n [4] OK\n [[5,6,7]] OK\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $let x:_:z = (1:2:[]):(3:4:[]):(5:[6,7]):[]
+--   ${show x} OK
+--   ${show z} OK
+-- |]
+-- :}
+-- "\n [1,2] OK\n [[5,6,7]] OK\n \n"
+--
