@@ -47,6 +47,7 @@ data Line = CtrlForall [Expr] [Expr] ChildBlock
 data Expr = S String
           | I Integer
           | W
+          | A String Expr
           | V String
           | V' String
           | C String
@@ -131,7 +132,8 @@ ctrlLet = CtrlLet <$> bindVal <*> expr <*> pure []
                 <* spaceTabs <* string "=" <* spaceTabs
 
 binding :: Parser [Expr]
-binding = spaceTabs *> many1 term
+binding = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
+                              term)
     where
       term :: Parser Expr
       term = (C <$> con <|>
@@ -144,7 +146,8 @@ binding = spaceTabs *> many1 term
                V <$> var)) <* spaceTabs
 
 expr :: Parser [Expr]
-expr = spaceTabs *> many1 term
+expr = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
+                           term)
     where
       term :: Parser Expr
       term = (S  <$> str <|>
@@ -313,6 +316,7 @@ instance ToQPat Expr where
     toQPat (E e) = concatToQPat e
     toQPat (C c) = conP (mkName c) []
     toQPat (T t) = tupP $ map concatToQPat t
+    toQPat (A a e) = asP (mkName a) $ toQPat e
 
     -- special case for list
     concatToQPat (x:O ":":xs) = infixP (toQPat x)
@@ -320,8 +324,9 @@ instance ToQPat Expr where
                                        (concatToQPat xs)
     concatToQPat ((C c):args) = conP (mkName c) $ map toQPat args
     concatToQPat ((V v):args) = varP (mkName v) -- OK?
-    concatToQPat ((T t):[]) = toQPat (T t) -- OK?
+    concatToQPat (p@(T t):[]) = toQPat p -- OK?
     concatToQPat (W:[]) = wildP -- OK?
+    concatToQPat (p@(A _ _):[]) = toQPat p
     concatToQPat _ = error "don't support this pattern"
 
 class ToQExp a where
