@@ -406,3 +406,13 @@ main = do
 -- :}
 -- "\n 1 and [(3,4),(5,6)] in [(1,2),(3,4),(5,6)]\n \n"
 --
+-- |
+-- >>> :{
+-- [heredoc|
+-- $maybe p@(Person _ age _) <- Just (Person "katsutoshi" 45 Male)
+--   ${show p}
+-- |]
+-- :}
+--"\n Person \"katsutoshi\" 45 Male\n \n"
+--
+-- |
