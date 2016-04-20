@@ -3,8 +3,8 @@
 
 name:                heredoc
 version:             0.1.0.0
--- synopsis:            
--- description:         
+synopsis:            heredocument
+description:         heredocument
 homepage:            http://github.com/cutsea110/heredoc.git
 license:             BSD3
 license-file:        LICENSE

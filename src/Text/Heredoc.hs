@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
-module Text.Heredoc where
+module Text.Heredoc (heredoc) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow ((***))
