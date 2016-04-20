@@ -103,8 +103,10 @@ main = do
   putStr servantClientCode
 
 --}
--- |
+-- | Setting up
 -- >>> :set -XQuasiQuotes
+--
+-- |
 -- >>> [heredoc|Hello,World|]
 -- "Hello,World\n"
 --
@@ -115,103 +117,137 @@ main = do
 -- |]
 -- :}
 -- "\n Hello,World\n \n"
-
-test0 :: String
-test0 = [heredoc|hello,world|]
-
-test1 :: String
-test1 = [heredoc|
-Hello, World!
-|]
-
-test2 :: String
-test2 = let x = 42
-        in [heredoc|
-The number is ${show x}.
-|]
-
-test3 :: String
-test3 = [heredoc|
-Question
-  $let x = 42
-    ${show x} + 2 = ${show $ x + 2}.
-    ${show x} * 2 = ${show $ x * 2}.
-    ${show x} ^ 2 = ${show $ x ^ 2}.
-|]
-
-test4 :: String
-test4 = [heredoc|
-Question
-  $let x = 42
-    $let y = "Katsutoshi"
-      ${y}(${show $ x+3}).
-|]
-
-test5 :: String
-test5 = let mu = Just "katsutoshi"
-        in [heredoc|
-$maybe u <- mu
-  Hello ${u} san
-$nothing
-  Bye
-|]
-
-test5' :: String
-test5' = let mu = Nothing
-         in [heredoc|
-$maybe u <- mu
-  Hello ${u} san
-$nothing
-  Bye
-|]
-
-test5'' :: String
-test5'' = let ma = Nothing :: Maybe Int
-          in [heredoc|
-$maybe a<-ma
-  ${show a}
-|]
-
-test6 :: String
-test6 = let mu = Just "katsutoshi"
-            ma = Just 45
-        in [heredoc|
-$maybe u <- mu
-  $maybe a <- ma
-    ${u}(${show a})
-|]
-
-test6' :: String
-test6' = let mu = Just "katsutoshi"
-             ma = Nothing :: Maybe Int
-         in [heredoc|
-$maybe u <- mu
-  $maybe a <- ma
-    ${u}(${show a})
-  $nothing
-    ${u}(age not found)
-|]
-
-test7 :: String
-test7 = [heredoc|
-$if True
-  OK
-$else
-  NG
-|]
-
-test8 :: String
-test8 = [heredoc|
-$if 1==1
-  OK
-|]
-
-test8' :: String
-test8' = [heredoc|
-$if 1==2
-  OK
-|]
-
+--
+-- |
+-- >>> :{
+-- let x = 42
+-- in [heredoc|
+-- The number is ${show x}.
+-- |]
+-- :}
+-- "\n The number is 42.\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- Question
+--   $let x = 42
+--     ${show x} + 2 = ${show $ x + 2}.
+--     ${show x} * 2 = ${show $ x * 2}.
+--     ${show x} ^ 2 = ${show $ x ^ 2}.
+-- |]
+-- :}
+-- "\n Question\n   42 + 2 = 44.\n   42 * 2 = 84.\n   42 ^ 2 = 1764.\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- Question
+--   $let x = 42
+--     $let y = "Katsutoshi"
+--       ${y}(${show $ x+3}).
+-- |]
+-- :}
+-- "\n Question\n   Katsutoshi(45).\n \n"
+--
+-- |
+-- >>> :{
+-- let mu = Just "katsutoshi"
+-- in [heredoc|
+-- $maybe u <- mu
+--   Hello ${u} san
+-- $nothing
+--   Bye
+-- |]
+-- :}
+-- "\n Hello katsutoshi san\n \n"
+--
+-- |
+-- >>> :{
+-- let mu = Nothing
+-- in [heredoc|
+-- $maybe u <- mu
+--   Hello ${u} san
+-- $nothing
+--   Bye
+-- |]
+-- :}
+-- "\n Bye\n \n"
+--
+-- |
+-- >>> :{
+-- let ma = Nothing :: Maybe Int
+-- in [heredoc|
+-- $maybe a<-ma
+--   ${show a}
+-- |]
+-- :}
+-- "\n \n"
+--
+-- |
+-- >>> :{
+-- let mu = Just "katsutoshi"
+--     ma = Just 45
+-- in [heredoc|
+-- $maybe u <- mu
+--   $maybe a <- ma
+--     ${u}(${show a})
+-- |]
+-- :}
+-- "\n katsutoshi(45)\n \n"
+--
+-- |
+-- >>> :{
+-- let mu = Just "katsutoshi"
+--     ma = Nothing :: Maybe Int
+-- in [heredoc|
+-- $maybe u <- mu
+--   $maybe a <- ma
+--     ${u}(${show a})
+--   $nothing
+--     ${u}(age not found)
+-- |]
+-- :}
+-- "\n katsutoshi(age not found)\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $if True
+--   OK
+-- $else
+--   NG
+-- |]
+-- :}
+-- "\n OK\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $if 1==1
+--   OK
+-- |]
+-- :}
+-- "\n OK\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $if 1==2
+--   OK
+-- |]
+-- :}
+-- "\n \n"
+--
+-- |
+-- >>> :{
+-- [heredoc|
+-- $if 1==2
+-- $else
+--   False
+-- |]
+-- :}
+-- "\n False\n \n"
 test8'' :: String
 test8'' = [heredoc|
 $if 1==2
