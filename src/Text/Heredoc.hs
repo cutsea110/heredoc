@@ -1,7 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
-module Text.Heredoc (heredoc) where
+module Text.Heredoc ( heredoc
+                    , heredocFile
+                    ) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow ((***))
@@ -14,6 +16,11 @@ import Language.Haskell.TH.Quote
 
 heredoc :: QuasiQuoter
 heredoc = QuasiQuoter { quoteExp = heredocFromString }
+
+heredocFile :: FilePath -> Q Exp
+heredocFile fp = do
+  content <- runIO $ readFile fp
+  heredocFromString content
 
 -- | C# code gen
 heredocFromString :: String -> Q Exp
