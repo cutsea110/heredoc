@@ -231,6 +231,10 @@ arrange = norm . rev . foldl (flip push) []
       push x [] = x:[]
       push x ss'@((_, Normal _):_) = x:ss'
 
+      push x@(i, _) ss'@((j, CtrlForall b e body):ss)
+          | i > j = (j, CtrlForall b e (push x body)):ss
+          | otherwise = x:ss'
+
       push x@(i, _) ss'@((j, CtrlLet b e body):ss)
           | i > j = (j, CtrlLet b e (push x body)):ss
           | otherwise = x:ss'
@@ -273,6 +277,8 @@ arrange = norm . rev . foldl (flip push) []
       rev = foldr (\x xs -> xs ++ [rev' x]) []
       rev' :: Line' -> Line'
       rev' x@(_, Normal _) = x
+      rev' (i, CtrlForall b e body)
+          = (i, CtrlForall b e (rev body))
       rev' (i, CtrlLet b e body)
           = (i, CtrlLet b e (rev body))
       rev' (i, CtrlMaybe flg b e body alt)
@@ -286,6 +292,8 @@ arrange = norm . rev . foldl (flip push) []
       norm = foldr (\x xs -> norm' x:xs) []
       norm' :: Line' -> Line'
       norm' x@(_, Normal _) = x
+      norm' (i, CtrlForall b e body)
+          = (i, CtrlForall b e (normsub i body))
       norm' (i, CtrlLet b e body)
           = (i, CtrlLet b e (normsub i body))
       norm' (i, CtrlMaybe flg b e body alt)
@@ -376,7 +384,14 @@ instance ToQExp InLine where
                                  (Just (concatToQExp xs))
 
 instance ToQExp Line where
-    toQExp (CtrlForall b e body) = undefined
+    toQExp (CtrlForall b e body)
+        = appE (appE (appE (varE 'foldr)
+                           (lamE [concatToQPat b]
+                                 (infixE (Just (concatToQExp body))
+                                         (varE '(++))
+                                         Nothing)))
+                (litE (stringL "")))
+          (concatToQExp e)
     toQExp (CtrlMaybe flg b e body alt)
         = caseE (concatToQExp e)
                 [ match (conP 'Just [concatToQPat b])

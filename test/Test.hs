@@ -416,3 +416,17 @@ main = do
 --"\n Person \"katsutoshi\" 45 Male\n \n"
 --
 -- |
+-- >>> data Person' = Person' { name :: String, age :: Int, sex :: Gender }
+-- >>> :{
+-- let ps = [Person' "katsutoshi" 45 Male, Person' "keiko" 44 Female]
+-- in [heredoc|
+-- $forall (i, p) <- zip [1,2] ps
+--   ${show i}
+--     Name : ${name p}
+--     Age  : ${show $ age p}
+--     Sex  : ${show $ sex p}
+-- |]
+-- :}
+-- "\n 1\n   Name : katsutoshi\n   Age  : 45\n   Sex  : Male\n 2\n   Name : keiko\n   Age  : 44\n   Sex  : Female\n \n"
+--
+
