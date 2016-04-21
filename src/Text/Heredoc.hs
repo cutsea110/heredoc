@@ -25,7 +25,7 @@ heredocFile fp = do
 -- | C# code gen
 heredocFromString :: String -> Q Exp
 heredocFromString
-    = either err (concatToQExp . arrange) . parse doc "heredoc" . (<>"\n")
+    = either err (concatToQExp . arrange) . parse doc "heredoc"
     where
       err = infixE <$> Just . pos <*> pure (varE '(++)) <*> Just . msg
       pos = litE <$> (stringL <$> show . errorPos)
@@ -77,7 +77,7 @@ spaceTabs :: Parser String
 spaceTabs = many (oneOf " \t")
 
 doc :: Parser [(Indent, Line)]
-doc = line `endBy` eol
+doc = line `sepBy` eol
 
 line :: Parser (Indent, Line)
 line = (,) <$> indent <*> contents
