@@ -300,23 +300,26 @@ arrange = norm . rev . foldl (flip push) []
       norm' :: Line' -> Line'
       norm' x@(_, Normal _) = x
       norm' (i, CtrlForall b e body)
-          = (i, CtrlForall b e (normsub i body))
+          = (i, CtrlForall b e (normsub i body ++ blockEnd))
       norm' (i, CtrlLet b e body)
-          = (i, CtrlLet b e (normsub i body))
+          = (i, CtrlLet b e (normsub i body ++ blockEnd))
       norm' (i, CtrlMaybe flg b e body alt)
-          = (i, CtrlMaybe flg b e (normsub i body) (normsub i alt))
+          = (i, CtrlMaybe flg b e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
       norm' (i, CtrlNothing) = error "orphan $nothing found"
       norm' (i, CtrlIf flg e body alt)
-          = (i, CtrlIf flg e (normsub i body) (normsub i alt))
+          = (i, CtrlIf flg e (normsub i body ++ blockEnd) (normsub i alt ++ blockEnd))
       norm' (i, CtrlElse) = error "orphan $else found"
       norm' (i, CtrlCase e alts)
-          = (i, CtrlCase e (map (id *** normsub i) alts))
+          = (i, CtrlCase e (map (id *** (++ blockEnd) . normsub i) alts))
       norm' (i, CtrlOf _) = error "orphan $of found"
 
       normsub :: Indent -> [Line'] -> [Line']
       normsub i body = let j = minimum $ map fst body
                            deIndent n = i+(n-j)
                        in norm $ map (deIndent *** id) body
+
+      blockEnd :: [Line']
+      blockEnd = [(0, Normal [])]
 
 class ToQPat a where
     toQPat :: a -> Q Pat
@@ -436,10 +439,14 @@ instance ToQExp Line' where
     toQExp (n, x) =  toQExp x -- Ctrl*
 
     concatToQExp [] = litE (stringL "")
-    concatToQExp (x@(_, Normal _):xs)
+    concatToQExp (x@(_, Normal _):y:ys)
         = infixE (Just (infixE (Just (toQExp x))
                                (varE '(++))
                                (Just (litE (stringL "\n")))))
+                 (varE '(++))
+                 (Just (concatToQExp (y:ys)))
+    concatToQExp (x@(_, Normal _):xs)
+        = infixE (Just (toQExp x))
                  (varE '(++))
                  (Just (concatToQExp xs))
     concatToQExp (x:xs) = infixE (Just (toQExp x))

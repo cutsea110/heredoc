@@ -12,7 +12,7 @@ import Text.Heredoc
 --
 -- |
 -- >>> [heredoc|Hello,World|]
--- "Hello,World\n"
+-- "Hello,World"
 --
 -- |
 -- >>> :{
@@ -20,7 +20,7 @@ import Text.Heredoc
 -- Hello,World
 -- |]
 -- :}
--- "\n Hello,World\n \n"
+-- "\n Hello,World\n "
 --
 -- |
 -- >>> :{
@@ -29,7 +29,7 @@ import Text.Heredoc
 -- The number is ${show x}.
 -- |]
 -- :}
--- "\n The number is 42.\n \n"
+-- "\n The number is 42.\n "
 --
 -- |
 -- >>> :{
@@ -41,7 +41,7 @@ import Text.Heredoc
 --     ${show x} ^ 2 = ${show $ x ^ 2}.
 -- |]
 -- :}
--- "\n Question\n   42 + 2 = 44.\n   42 * 2 = 84.\n   42 ^ 2 = 1764.\n \n"
+-- "\n Question\n   42 + 2 = 44.\n   42 * 2 = 84.\n   42 ^ 2 = 1764.\n "
 --
 -- |
 -- >>> :{
@@ -52,7 +52,7 @@ import Text.Heredoc
 --       ${y}(${show $ x+3}).
 -- |]
 -- :}
--- "\n Question\n   Katsutoshi(45).\n \n"
+-- "\n Question\n   Katsutoshi(45).\n "
 --
 -- |
 -- >>> :{
@@ -64,7 +64,7 @@ import Text.Heredoc
 --   Bye
 -- |]
 -- :}
--- "\n Hello katsutoshi san\n \n"
+-- "\n Hello katsutoshi san\n "
 --
 -- |
 -- >>> :{
@@ -76,7 +76,7 @@ import Text.Heredoc
 --   Bye
 -- |]
 -- :}
--- "\n Bye\n \n"
+-- "\n Bye\n "
 --
 -- |
 -- >>> :{
@@ -86,7 +86,7 @@ import Text.Heredoc
 --   ${show a}
 -- |]
 -- :}
--- "\n \n"
+-- "\n "
 --
 -- |
 -- >>> :{
@@ -98,7 +98,7 @@ import Text.Heredoc
 --     ${u}(${show a})
 -- |]
 -- :}
--- "\n katsutoshi(45)\n \n"
+-- "\n katsutoshi(45)\n "
 --
 -- |
 -- >>> :{
@@ -112,7 +112,7 @@ import Text.Heredoc
 --     ${u}(age not found)
 -- |]
 -- :}
--- "\n katsutoshi(age not found)\n \n"
+-- "\n katsutoshi(age not found)\n "
 --
 -- |
 -- >>> :{
@@ -123,7 +123,7 @@ import Text.Heredoc
 --   NG
 -- |]
 -- :}
--- "\n OK\n \n"
+-- "\n OK\n "
 --
 -- |
 -- >>> :{
@@ -132,7 +132,7 @@ import Text.Heredoc
 --   OK
 -- |]
 -- :}
--- "\n OK\n \n"
+-- "\n OK\n "
 --
 -- |
 -- >>> :{
@@ -141,7 +141,7 @@ import Text.Heredoc
 --   OK
 -- |]
 -- :}
--- "\n \n"
+-- "\n "
 --
 -- |
 -- >>> :{
@@ -151,7 +151,7 @@ import Text.Heredoc
 --   False
 -- |]
 -- :}
--- "\n False\n \n"
+-- "\n False\n "
 --
 -- |
 -- >>> :{
@@ -166,7 +166,7 @@ import Text.Heredoc
 --      NG
 -- |]
 -- :}
--- "\n Hello\n   OK => katsutoshi\n \n"
+-- "\n Hello\n   OK => katsutoshi\n "
 --
 -- |
 -- >>> :{
@@ -180,7 +180,7 @@ import Text.Heredoc
 --       NG
 -- |]
 -- :}
--- "\n Hello\n   OK => katsutoshi\n \n"
+-- "\n Hello\n   OK => katsutoshi\n "
 --
 -- |
 -- >>> :{
@@ -195,7 +195,7 @@ import Text.Heredoc
 --   $else
 -- |]
 -- :}
--- "\n Hello\n   OK => katsutoshi.\n \n"
+-- "\n Hello\n   OK => katsutoshi.\n "
 --
 -- |
 -- >>> :{
@@ -206,7 +206,7 @@ import Text.Heredoc
 --   NG
 -- |]
 -- :}
--- "\n OK\n \n"
+-- "\n OK\n "
 --
 -- >>> data Gender = Male | Female | NewHalf deriving Show
 -- >>> :{
@@ -221,7 +221,7 @@ import Text.Heredoc
 --     P~~~~~~~
 -- |]
 -- :}
--- "\n Onna\n \n"
+-- "\n Onna\n "
 --
 -- |
 -- >>> data Person = Person String Int Gender deriving Show
@@ -238,7 +238,7 @@ import Text.Heredoc
 --       ${name}(${show age}) - ?
 -- |]
 -- :}
--- "\n Katsutoshi(45) - Otoko\n \n"
+-- "\n Katsutoshi(45) - Otoko\n "
 --
 -- |
 -- >>> :{
@@ -249,7 +249,7 @@ import Text.Heredoc
 --   ${n2}(${show a2}) ${show g2}
 -- |]
 -- :}
--- "\n katsutoshi(45) Male\n keiko(44) Female\n \n"
+-- "\n katsutoshi(45) Male\n keiko(44) Female\n "
 --
 -- |
 -- >>> :{
@@ -261,7 +261,7 @@ import Text.Heredoc
 --   ${n2}(${show a2}) ${show g2}
 -- |]
 -- :}
--- "\n katsutoshi(45) Male\n keiko(44) Female\n \n"
+-- "\n katsutoshi(45) Male\n keiko(44) Female\n "
 --
 -- |
 -- >>> :{
@@ -270,7 +270,7 @@ import Text.Heredoc
 --   ${show x} OK
 -- |]
 -- :}
--- "\n 1 OK\n \n"
+-- "\n 1 OK\n "
 --
 -- |
 -- >>> :{
@@ -279,7 +279,7 @@ import Text.Heredoc
 --   ${show z} OK
 -- |]
 -- :}
--- "\n [3,4,5,6,7] OK\n \n"
+-- "\n [3,4,5,6,7] OK\n "
 --
 -- |
 -- >>> :{
@@ -290,7 +290,7 @@ import Text.Heredoc
 --   ${show z} OK
 -- |]
 -- :}
--- "\n [1,2,3] OK\n [4] OK\n [[5,6,7]] OK\n \n"
+-- "\n [1,2,3] OK\n [4] OK\n [[5,6,7]] OK\n "
 --
 -- |
 -- >>> :{
@@ -300,7 +300,7 @@ import Text.Heredoc
 --   ${show z} OK
 -- |]
 -- :}
--- "\n [1,2] OK\n [[5,6,7]] OK\n \n"
+-- "\n [1,2] OK\n [[5,6,7]] OK\n "
 --
 -- >>> :{
 -- [heredoc|
@@ -308,7 +308,7 @@ import Text.Heredoc
 --   ${show $ fst x} and ${show xs} in ${show xss}
 -- |]
 -- :}
--- "\n 1 and [(3,4),(5,6)] in [(1,2),(3,4),(5,6)]\n \n"
+-- "\n 1 and [(3,4),(5,6)] in [(1,2),(3,4),(5,6)]\n "
 --
 -- |
 -- >>> :{
@@ -317,7 +317,7 @@ import Text.Heredoc
 --   ${show p}
 -- |]
 -- :}
---"\n Person \"katsutoshi\" 45 Male\n \n"
+--"\n Person \"katsutoshi\" 45 Male\n "
 --
 -- |
 -- >>> data Person' = Person' { name :: String, age :: Int, sex :: Gender }
@@ -331,6 +331,6 @@ import Text.Heredoc
 --     Sex  : ${show $ sex p}
 -- |]
 -- :}
--- "\n 1\n   Name : katsutoshi\n   Age  : 45\n   Sex  : Male\n 2\n   Name : keiko\n   Age  : 44\n   Sex  : Female\n \n"
+-- "\n 1\n   Name : katsutoshi\n   Age  : 45\n   Sex  : Male\n 2\n   Name : keiko\n   Age  : 44\n   Sex  : Female\n "
 --
 
