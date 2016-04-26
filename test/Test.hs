@@ -338,7 +338,17 @@ import Text.Heredoc
 -- | Setting up
 -- >>> :set -XOverloadedStrings
 --
+-- |
 -- >>> let name = "Katsutoshi" :: Text
 -- >>> [heredoc|Hello, ${T.unpack name} san!|]
 -- "Hello, Katsutoshi san!"
 --
+-- |
+-- >>> :{
+-- [heredoc|
+-- $let (name1, name2) = ("Keiko", "Nao")
+--   Hello, ${T.unpack name1} & ${T.unpack name2}
+-- |]
+-- :}
+-- "\n Hello, Keiko & Nao\n "
+-- 
