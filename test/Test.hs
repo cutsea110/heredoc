@@ -4,6 +4,7 @@
 module Test where
 
 import Language.Haskell.TH
+import Data.Text as T (Text, unpack)
 
 import Text.Heredoc
 
@@ -333,4 +334,11 @@ import Text.Heredoc
 -- :}
 -- "\n 1\n   Name : katsutoshi\n   Age  : 45\n   Sex  : Male\n 2\n   Name : keiko\n   Age  : 44\n   Sex  : Female\n "
 --
-
+-- |
+-- | Setting up
+-- >>> :set -XOverloadedStrings
+--
+-- >>> let name = "Katsutoshi" :: Text
+-- >>> [heredoc|Hello, ${T.unpack name} san!|]
+-- "Hello, Katsutoshi san!"
+--

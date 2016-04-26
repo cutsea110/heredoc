@@ -8,6 +8,7 @@ module Text.Heredoc ( heredoc
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow ((***))
 import Data.Function (on)
+import Data.List (intercalate)
 import Data.Monoid ((<>))
 import Text.ParserCombinators.Parsec hiding (Line)
 import Text.ParserCombinators.Parsec.Error
@@ -143,14 +144,14 @@ binding = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
                               term)
     where
       term :: Parser Expr
-      term = (C <$> con <|>
-              T <$> tuple <|>
+      term = (T <$> tuple <|>
               (try (nil >> pure N) <|>
                try (L <$> list) <|>
                try (O <$> string ":")) <|> -- only pattern operator
               (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
-               V <$> var)) <* spaceTabs
+               V <$> var) <|>
+              C <$> con) <* spaceTabs
 
 expr :: Parser [Expr]
 expr = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
@@ -163,12 +164,12 @@ expr = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
                try (L <$> list) <|>
                try (O <$> op)) <|>
               (try (O' <$> op') <|> try (E  <$> subexp)) <|>
-              C  <$> con <|>
-              I  <$> integer <|>
               V' <$> var' <|>
               (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
-               V <$> var)) <* spaceTabs
+               V <$> var) <|>
+              C  <$> con <|>
+              I  <$> integer) <* spaceTabs
 
 
 tuple :: Parser [[Expr]]
@@ -190,7 +191,19 @@ subexp :: Parser [Expr]
 subexp = char '(' *> expr <* char ')'
 
 var :: Parser String
-var = (:) <$> lower <*> many (alphaNum <|> oneOf "_'")
+var = try ((+.+) <$> modul <*> v) <|> v
+    where
+      x +.+ y = x <> "." <> y
+      v :: Parser String
+      v = (:) <$> lower <*> many (alphaNum <|> oneOf "_'")
+
+modul :: Parser String
+modul = try (intercalate "." <$> many1 (mod' <* char '.')) <|> mod'
+    where
+      mod' :: Parser String
+      mod' = (:) <$> upper <*> many alphaNum
+
+
 
 var' :: Parser String
 var' = char '`' *> var <* char '`'
