@@ -1,4 +1,4 @@
 # heredocument library
 
-  $ clean && cabal configure --user --enable-tests && cabal build && cabal test
+  $ cabal clean && cabal configure --user --enable-tests && cabal build && cabal test
 
