@@ -23,7 +23,6 @@ heredocFile fp = do
   content <- runIO $ readFile fp
   heredocFromString content
 
--- | C# code gen
 heredocFromString :: String -> Q Exp
 heredocFromString
     = either err (concatToQExp . arrange) . parse doc "heredoc"
