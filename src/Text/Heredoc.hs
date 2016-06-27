@@ -27,7 +27,7 @@ heredocFromString :: String -> Q Exp
 heredocFromString
     = either err (concatToQExp . arrange) . parse doc "heredoc"
     where
-      err = infixE <$> Just . pos <*> pure (varE '(++)) <*> Just . msg
+      err = infixE <$> Just . pos <*> pure (varE '(<>)) <*> Just . msg
       pos = litE <$> (stringL <$> show . errorPos)
       msg = litE <$> (stringL <$> concatMap messageString . errorMessages)
 
@@ -147,7 +147,7 @@ binding = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
               (try (nil >> pure N) <|>
                try (L <$> list) <|>
                try (O <$> string ":")) <|> -- only pattern operator
-              (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
+              (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
                V <$> var) <|>
               C <$> con) <* spaceTabs
@@ -164,7 +164,7 @@ expr = spaceTabs *> many1 (try (A <$> var <* char '@' <*> term) <|>
                try (O <$> op)) <|>
               (try (O' <$> op') <|> try (E  <$> subexp)) <|>
               V' <$> var' <|>
-              (try (V <$> ((++) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
+              (try (V <$> ((<>) <$> wild <*> many1 (alphaNum <|> oneOf "_'"))) <|>
                try (wild >> pure W) <|>
                V <$> var) <|>
               C  <$> con <|>
@@ -402,7 +402,7 @@ instance ToQExp InLine where
 
     concatToQExp [] = litE (stringL "")
     concatToQExp (x:xs) = infixE (Just (toQExp x))
-                                 (varE '(++))
+                                 (varE '(<>))
                                  (Just (concatToQExp xs))
 
 instance ToQExp Line where
@@ -410,7 +410,7 @@ instance ToQExp Line where
         = appE (appE (appE (varE 'foldr)
                            (lamE [concatToQPat b]
                                  (infixE (Just (concatToQExp body))
-                                         (varE '(++))
+                                         (varE '(<>))
                                          Nothing)))
                 (litE (stringL "")))
           (concatToQExp e)
@@ -440,27 +440,27 @@ instance ToQExp Line where
 
     concatToQExp (x:[]) = toQExp x
     concatToQExp (x:xs) = infixE (Just (toQExp x))
-                                 (varE '(++))
+                                 (varE '(<>))
                                  (Just (concatToQExp xs))
 
 instance ToQExp Line' where
     toQExp (n, x@(Normal _))
         = infixE (Just (litE (stringL (replicate n ' '))))
-                 (varE '(++))
+                 (varE '(<>))
                  (Just (toQExp x))
     toQExp (n, x) =  toQExp x -- Ctrl*
 
     concatToQExp [] = litE (stringL "")
     concatToQExp (x@(_, Normal _):y:ys)
         = infixE (Just (infixE (Just (toQExp x))
-                               (varE '(++))
+                               (varE '(<>))
                                (Just (litE (stringL "\n")))))
-                 (varE '(++))
+                 (varE '(<>))
                  (Just (concatToQExp (y:ys)))
     concatToQExp (x@(_, Normal _):xs)
         = infixE (Just (toQExp x))
-                 (varE '(++))
+                 (varE '(<>))
                  (Just (concatToQExp xs))
     concatToQExp (x:xs) = infixE (Just (toQExp x))
-                                 (varE '(++))
+                                 (varE '(<>))
                                  (Just (concatToQExp xs))
