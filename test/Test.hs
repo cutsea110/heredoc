@@ -5,6 +5,7 @@ module Test where
 
 import Language.Haskell.TH
 import Data.Text as T (Text, unpack)
+import Data.ByteString as BS (ByteString)
 
 import Text.Heredoc
 
@@ -352,3 +353,15 @@ import Text.Heredoc
 -- :}
 -- "\n Hello, Keiko & Nao\n "
 -- 
+-- |
+-- | Text
+-- >>> let name = "Katsutoshi" :: Text
+-- >>> [heredoc|Hello, ${name} (Text) san!|]
+-- "Hello, Katsutoshi (Text) san!"
+--
+-- |
+-- | ByteString
+-- >>> let name = "Katsutoshi" :: ByteString
+-- >>> [heredoc|Hello, ${name} (ByteString) san!|]
+-- "Hello, Katsutoshi (ByteString) san!"
+--

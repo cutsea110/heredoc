@@ -24,6 +24,7 @@ library
                      TemplateHaskell
                      QuasiQuotes
   build-depends:       base >=4.8 && <4.9
+                     , bytestring >= 0.10.6.0
                      , doctest >= 0.11.0
                      , parsec >=3.1.9
                      , template-haskell >=2.10.0.0
@@ -36,6 +37,7 @@ test-suite doctest
   ghc-options:       -threaded
   main-is:           doctests.hs
   build-depends:     base
+                   , bytestring >= 0.10.6.0
                    , doctest >= 0.11.0
                    , heredocs
                    , text >= 1.2.2.1
