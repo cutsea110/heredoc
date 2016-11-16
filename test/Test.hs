@@ -10,7 +10,11 @@ import Data.ByteString as BS (ByteString)
 import Text.Heredoc
 
 -- | Setting up
+-- $setup
 -- >>> :set -XQuasiQuotes
+-- >>> data Gender = Male | Female | NewHalf deriving Show
+-- >>> data Person = Person String Int Gender deriving Show
+-- >>> data Person' = Person' { name :: String, age :: Int, sex :: Gender }
 --
 -- |
 -- >>> [heredoc|Hello,World|]
@@ -210,7 +214,6 @@ import Text.Heredoc
 -- :}
 -- "\n OK\n "
 --
--- >>> data Gender = Male | Female | NewHalf deriving Show
 -- >>> :{
 -- let x = Female
 -- in [heredoc|
@@ -226,7 +229,6 @@ import Text.Heredoc
 -- "\n Onna\n "
 --
 -- |
--- >>> data Person = Person String Int Gender deriving Show
 -- >>> :{
 -- let mp = Just (Person "Katsutoshi" 45 Male)
 -- in [heredoc|
@@ -322,7 +324,6 @@ import Text.Heredoc
 --"\n Person \"katsutoshi\" 45 Male\n "
 --
 -- |
--- >>> data Person' = Person' { name :: String, age :: Int, sex :: Gender }
 -- >>> :{
 -- let ps = [Person' "katsutoshi" 45 Male, Person' "keiko" 44 Female]
 -- in [heredoc|
