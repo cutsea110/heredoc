@@ -3,8 +3,8 @@
 
 name:                heredocs
 version:             0.1.6
-synopsis:            heredocument
-description:         heredocument on Template Haskell
+synopsis:            Heredocument on Haskell
+description:         A heredocument library supports shakespeare-like syntax.
 homepage:            http://github.com/cutsea110/heredoc.git
 license:             BSD3
 license-file:        LICENSE
