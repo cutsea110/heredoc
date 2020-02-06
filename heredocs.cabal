@@ -4,7 +4,7 @@
 name:                heredocs
 version:             0.1.6
 synopsis:            heredocument
-description:         heredocument
+description:         heredocument on Template Haskell
 homepage:            http://github.com/cutsea110/heredoc.git
 license:             BSD3
 license-file:        LICENSE
