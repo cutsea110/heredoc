@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                heredocs
-version:             0.1.5
+version:             0.1.6
 synopsis:            heredocument
 description:         heredocument
 homepage:            http://github.com/cutsea110/heredoc.git
