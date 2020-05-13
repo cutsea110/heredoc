@@ -1,0 +1,15 @@
+language: haskell
+dist: xenial
+
+cache:
+  directories:
+    - $HOME/.cabal/package
+    - $HOME/.cabal/store
+
+cabal: "2.4"
+
+matrix:
+  fast_finish: true
+  include:
+    - env: BUILD=cabal
+      ghc: "8.6.5"
