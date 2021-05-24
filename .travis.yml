@@ -12,4 +12,4 @@ matrix:
   fast_finish: true
   include:
     - env: BUILD=cabal
-      ghc: "8.8.3"
+      ghc: "8.8.4"

@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                heredocs
-version:             0.2.0.0
+version:             0.2.1.0
 synopsis:            Heredocument on Haskell
 description:         A heredocument library supports shakespeare-like syntax.
 homepage:            http://github.com/cutsea110/heredoc.git
