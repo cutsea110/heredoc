@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                heredocs
-version:             0.2.1.0
+version:             0.2.1.1
 synopsis:            Heredocument on Haskell
 description:         A heredocument library supports shakespeare-like syntax.
 homepage:            http://github.com/cutsea110/heredoc.git
@@ -23,7 +23,7 @@ library
   other-extensions:    
                      TemplateHaskell
                      QuasiQuotes
-  build-depends:       base >=4.12 && <4.14
+  build-depends:       base >=4.12 && <4.16
                      , bytestring >= 0.10.6.0
                      , doctest >= 0.11.0
                      , parsec >=3.1.9
@@ -36,7 +36,7 @@ test-suite doctest
   type:              exitcode-stdio-1.0
   ghc-options:       -threaded
   main-is:           doctests.hs
-  build-depends:     base >=4.12 && <4.14
+  build-depends:     base >=4.12 && <4.16
                    , bytestring >= 0.10.6.0
                    , doctest >= 0.11.0
                    , heredocs
